@@ -399,6 +399,56 @@ bot.on("message", async (ctx, next) => {
   const msg = ctx.message;
   if (!msg) return;
 
+  // --- Режим "Служба поддержки" (Relay) для личных сообщений ---
+  if (ctx.chat.type === "private") {
+    const text = sanitizeText(msg.text || msg.caption || "");
+    const ownerId = config.ownerUserIds[0];
+
+    if (isOwner(ctx.from?.id)) {
+      // Владелец пишет боту в личку
+      const replyTo = msg.reply_to_message;
+      if (replyTo && replyTo.text && replyTo.text.includes("(ID:")) {
+        const match = replyTo.text.match(/\(ID:\s*(\d+)\)/);
+        if (match && match[1]) {
+          const targetId = parseInt(match[1]);
+          try {
+            await ctx.copyMessage(targetId);
+            await ctx.reply("✅ Ответ отправлен пользователю.");
+          } catch (e) {
+            await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
+          }
+        }
+      }
+      return; // Игнорируем обычные сообщения владельца в личке
+    } else {
+      // Пользователь пишет боту в личку
+      if (config.ownerUserIds && config.ownerUserIds.length > 0) {
+        try {
+          const username = ctx.from?.username ? `@${ctx.from.username}` : (ctx.from?.first_name || "Пользователь");
+          const header = `📨 Сообщение от ${username} (ID: ${ctx.from?.id})`;
+          
+          for (const adminId of config.ownerUserIds) {
+            try {
+              if (msg.text) {
+                 await bot.api.sendMessage(adminId, `${header}:\n\n${msg.text}`);
+              } else {
+                 await bot.api.sendMessage(adminId, `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`, { parse_mode: "Markdown" });
+                 await ctx.copyMessage(adminId);
+              }
+            } catch (err) {
+              console.error(`[Relay Error for Admin ${adminId}] ${err.message}`);
+            }
+          }
+          await ctx.reply("✅ Ваше сообщение отправлено администратору. Ожидайте ответа.");
+        } catch (e) {
+          console.error(`[Relay Error] ${e.message}`);
+        }
+      }
+      return; // Завершаем обработку, чтобы не дергать LLM
+    }
+  }
+  // --- Конец режима Relay ---
+
   // Кэшируем автоматические форварды постов канала и пишем первый комментарий
   if (isRealAutoForwardedChannelPost(msg) && isAllowedChat(msg.chat.id)) {
     cacheChannelPost(msg);
