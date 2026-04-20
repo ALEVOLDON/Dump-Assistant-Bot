@@ -1,0 +1,19 @@
+{
+  "name": "telegram-channel-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simple Telegram assistant for channel discussion comments",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "grammy": "^1.38.3"
+  }
+}
