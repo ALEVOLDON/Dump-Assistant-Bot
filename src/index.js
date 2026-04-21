@@ -321,6 +321,29 @@ async function maybeReply(ctx) {
   await ctx.reply(replyText, { reply_parameters: { message_id: message.message_id } });
   console.log(`[Reply] force=${forceReply} text=${replyText.slice(0, 80)}`);
 
+  // ─── Уведомление владельцу в личку ───────────────────────────────────────
+  const notifyOwnerId = config.ownerUserIds[0];
+  if (notifyOwnerId && message.chat.type !== "private") {
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const authorName = message.from?.username
+      ? `@${message.from.username}`
+      : (message.from?.first_name || `ID:${message.from?.id}`);
+    const chatTitle = message.chat.title || String(message.chat.id);
+    const fromId = message.from?.id;
+    const notifyText =
+      `🔔 <b>Ответил в группе</b> (${esc(chatTitle)})\n` +
+      `👤 ${esc(authorName)} (ID: ${fromId}): ${esc(text.slice(0, 200))}\n` +
+      `🤖 Бот: ${esc(replyText.slice(0, 200))}\n\n` +
+      `↩️ <i>Ответьте на это сообщение чтобы написать пользователю в личку</i>`;
+    bot.api
+      .sendMessage(notifyOwnerId, notifyText, {
+        parse_mode: "HTML",
+        disable_notification: false
+      })
+      .catch((e) => console.error(`[Notify Error] ${e.message}`));
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   rememberMessage(message, "assistant", replyText);
   state.threads[getThreadKey(message)] = {
     lastReplyAt: Date.now(),
@@ -402,49 +425,60 @@ bot.on("message", async (ctx, next) => {
   // --- Режим "Служба поддержки" (Relay) для личных сообщений ---
   if (ctx.chat.type === "private") {
     const text = sanitizeText(msg.text || msg.caption || "");
-    const ownerId = config.ownerUserIds[0];
+    const fromId = ctx.from?.id;
+    const username = ctx.from?.username ? `@${ctx.from.username}` : (ctx.from?.first_name || "Пользователь");
 
-    if (isOwner(ctx.from?.id)) {
-      // Владелец пишет боту в личку
+    console.log(`[Private] from=${fromId} (${username}) isOwner=${isOwner(fromId)}`);
+
+    if (isOwner(fromId)) {
+      // Владелец пишет боту в личку — пробуем переслать ответ пользователю
       const replyTo = msg.reply_to_message;
       if (replyTo && replyTo.text && replyTo.text.includes("(ID:")) {
         const match = replyTo.text.match(/\(ID:\s*(\d+)\)/);
         if (match && match[1]) {
           const targetId = parseInt(match[1]);
+          console.log(`[Relay Owner→User] targetId=${targetId} text=${text.slice(0, 60)}`);
           try {
             await ctx.copyMessage(targetId);
             await ctx.reply("✅ Ответ отправлен пользователю.");
           } catch (e) {
+            console.error(`[Relay Owner→User Error] ${e.message}`);
             await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
           }
+        } else {
+          console.log(`[Relay Owner] Reply не содержит ID пользователя`);
         }
+      } else {
+        console.log(`[Relay Owner] Сообщение без Reply или без ID — игнорируем`);
       }
-      return; // Игнорируем обычные сообщения владельца в личке
+      return;
     } else {
-      // Пользователь пишет боту в личку
-      if (config.ownerUserIds && config.ownerUserIds.length > 0) {
-        try {
-          const username = ctx.from?.username ? `@${ctx.from.username}` : (ctx.from?.first_name || "Пользователь");
-          const header = `📨 Сообщение от ${username} (ID: ${ctx.from?.id})`;
-          
-          for (const adminId of config.ownerUserIds) {
-            try {
-              if (msg.text) {
-                 await bot.api.sendMessage(adminId, `${header}:\n\n${msg.text}`);
-              } else {
-                 await bot.api.sendMessage(adminId, `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`, { parse_mode: "Markdown" });
-                 await ctx.copyMessage(adminId);
-              }
-            } catch (err) {
-              console.error(`[Relay Error for Admin ${adminId}] ${err.message}`);
-            }
-          }
-          await ctx.reply("✅ Ваше сообщение отправлено администратору. Ожидайте ответа.");
-        } catch (e) {
-          console.error(`[Relay Error] ${e.message}`);
-        }
+      // Пользователь пишет боту в личку → пересылаем владельцу
+      const primaryOwnerId = config.ownerUserIds[0];
+      console.log(`[Relay User→Owner] from=${fromId} owner=${primaryOwnerId} text=${text.slice(0, 60)}`);
+
+      if (!primaryOwnerId) {
+        console.error(`[Relay Error] OWNER_USER_IDS не задан в .env!`);
+        await ctx.reply("Извините, бот временно недоступен.");
+        return;
       }
-      return; // Завершаем обработку, чтобы не дергать LLM
+
+      try {
+        const header = `📨 Сообщение от ${username} (ID: ${fromId})`;
+        if (msg.text) {
+          await bot.api.sendMessage(primaryOwnerId, `${header}:\n\n${msg.text}`);
+          console.log(`[Relay OK] Текст переслан владельцу`);
+        } else {
+          await bot.api.sendMessage(primaryOwnerId, `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`, { parse_mode: "Markdown" });
+          await ctx.copyMessage(primaryOwnerId);
+          console.log(`[Relay OK] Медиа переслано владельцу`);
+        }
+        await ctx.reply("✅ Ваше сообщение отправлено администратору. Ожидайте ответа.");
+      } catch (e) {
+        console.error(`[Relay Error] Не удалось переслать владельцу: ${e.message}`);
+        await ctx.reply("Извините, произошла ошибка. Попробуйте позже.");
+      }
+      return;
     }
   }
   // --- Конец режима Relay ---
