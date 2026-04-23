@@ -32,7 +32,7 @@ if (state.autoReplyEnabled === undefined) {
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function isOwner(userId) {
-  return config.ownerUserIds.length === 0 || config.ownerUserIds.includes(userId);
+  return config.ownerUserIds.length > 0 && config.ownerUserIds.includes(userId);
 }
 
 function isAllowedChat(chatId) {
@@ -99,6 +99,13 @@ function analyzeMessage(message, text) {
   if (!text) return { skip: true, reason: "empty_text" };
   if (isNoise(text)) return { skip: true, reason: "noise" };
 
+  // Жесткий лимит: не чаще 1 раза в 3 секунды для одного треда, чтобы избежать DoS
+  const threadKey = getThreadKey(message);
+  const threadState = state.threads[threadKey];
+  if (threadState?.lastReplyAt && Date.now() - threadState.lastReplyAt < 3000) {
+    return { skip: true, reason: "hard_cooldown_dos_protection" };
+  }
+
   // Ответ на сообщение бота — всегда обрабатываем
   if (message.reply_to_message?.from?.username?.toLowerCase() === config.botUsername) {
     return { skip: false, forceReply: true };
@@ -120,7 +127,6 @@ function analyzeMessage(message, text) {
   }
 
   // Кулдаун для обычных сообщений
-  const threadState = state.threads[getThreadKey(message)];
   if (threadState?.lastReplyAt && Date.now() - threadState.lastReplyAt < config.threadCooldownMs) {
     return { skip: true, reason: "cooldown" };
   }
@@ -213,7 +219,7 @@ function buildUserPrompt(message, text, forceReply, postContext) {
   }
 
   lines.push(`Автор: ${author} [${authorRole}]`);
-  lines.push(`Сообщение: ${text}`);
+  lines.push(`Сообщение:\n<user_message>\n${text}\n</user_message>`);
   lines.push("");
 
   if (history) {

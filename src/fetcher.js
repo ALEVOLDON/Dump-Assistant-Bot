@@ -27,6 +27,31 @@ function stripHtml(html) {
     .trim();
 }
 
+/** Проверка URL на безопасность (SSRF защита) */
+function isSafeUrl(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const host = parsed.hostname;
+    if (
+      host === "localhost" ||
+      host.startsWith("127.") ||
+      host.startsWith("10.") ||
+      host.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+      host.startsWith("169.254.") ||
+      host.endsWith(".local") ||
+      host.includes("::") ||
+      host === "0.0.0.0"
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Загрузить содержимое URL и вернуть очищенный текст.
  * Возвращает null если не удалось или контент не текстовый.
@@ -35,6 +60,8 @@ function stripHtml(html) {
  * @returns {Promise<string|null>}
  */
 async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
+  if (!isSafeUrl(url)) return null;
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
