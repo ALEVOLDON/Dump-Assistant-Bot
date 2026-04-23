@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dump-Assistant-Bot | Smart AI for Telegram</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background font-body-lg">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-xl shadow-sky-500/10">
+<div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+<div class="text-xl font-bold text-white tracking-tighter font-headline-md flex items-center gap-2">
+<span class="material-symbols-outlined text-sky-500" data-icon="smart_toy">smart_toy</span>
+                Dump-Assistant-Bot
+            </div>
+<nav class="hidden md:flex items-center gap-8 font-['Space_Grotesk'] text-sm tracking-tight">
+<a class="text-sky-400 border-b-2 border-sky-400 pb-1 transition-all duration-300" href="#features">Features</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#setup">Setup</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#commands">Commands</a>
+</nav>
+<button class="bg-primary-container text-on-primary-container px-5 py-2 rounded-xl font-bold transition-all duration-300 active:scale-95 hover:bg-white/5 hover:text-sky-300">
+                Add to Telegram
+            </button>
+</div>
+</header>
+<main class="pt-24">
+<!-- Hero Section -->
+<section class="relative px-6 py-20 md:py-32 overflow-hidden">
+<div class="absolute inset-0 z-0">
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary-container/10 rounded-full blur-[120px]"></div>
+</div>
+<div class="max-w-7xl mx-auto relative z-10 grid md:grid-cols-2 gap-12 items-center">
+<div class="space-y-6">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container/30 border border-outline-variant text-primary text-label-md">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+                        POWERED BY OLLAMA
+                    </div>
+<h1 class="text-5xl md:text-7xl font-headline-lg text-white leading-tight">
+                        Dump-Assistant-Bot: Your Smart <span class="text-primary">AI Sidekick</span> for Telegram
+                    </h1>
+<p class="text-on-surface-variant text-body-lg max-w-lg">
+                        Automate routine tasks and engage your communities with a context-aware assistant that runs locally on your hardware.
+                    </p>
+<div class="flex flex-wrap gap-4 pt-4">
+<a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" class="bg-primary-container text-on-primary-container px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:brightness-110 transition-all">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                            Get Started on GitHub
+                        </a>
+<a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank" class="border border-outline text-white px-8 py-4 rounded-xl font-bold hover:bg-white/5 transition-all">
+                            View Documentation
+                        </a>
+</div>
+</div>
+<div class="relative group">
+<div class="absolute -inset-1 bg-gradient-to-r from-primary to-tertiary rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+<div class="relative glass-panel rounded-2xl p-4 md:p-8 aspect-video flex flex-col justify-end overflow-hidden">
+<img alt="AI Neural Interface" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" data-alt="Futuristic glowing digital brain and neural networks in a sleek dark interface with blue neon accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrz3itN_pkm9KUIFgxGi89K1YVXz-EWHdoFq5Z2XpzqA9Ff6VgX5QArOjTact666tvZvlnBdLa1bNGyp2po4pt5YoMem8Ne_CFXTDA1GWUlbxhD3LTOFjuCZrzT93TPpbUGXPmZ_7cyur-TWBZ6KguMOI0TBPz2qFpnzqTUKSpo0aCy0yG6Fm_f1-nocfZNdfYIHUQvSdYQ2XdC4Y7Pee6mECg6boKjR6BjMlvFzCvirgOvGCSYYULgxnTSFs2yTAi63zMvYcbZnc"/>
+<div class="relative z-10 bg-surface-container/90 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-sm" data-icon="smart_toy">smart_toy</span>
+</div>
+<span class="text-white font-bold text-sm">Bot Processing...</span>
+</div>
+<p class="text-on-surface-variant text-sm">"Analyzing the provided link. Here is the summary of the key findings..."</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Features Grid -->
+<section class="max-w-7xl mx-auto px-6 py-20" id="features">
+<div class="text-center mb-16">
+<h2 class="text-headline-lg text-white mb-4">Hyper-Competent Automation</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto">Designed for privacy-conscious users and community managers who need enterprise-grade AI without the subscription fees.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-6">
+<!-- Local AI -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-tertiary text-3xl mb-4 block" data-icon="database">database</span>
+<h3 class="text-headline-md text-white mb-2">Local AI</h3>
+<p class="text-on-surface-variant text-body-sm">Full Ollama support. Keep your data on your own machine. No external API calls needed for core tasks.</p>
+</div>
+<!-- Context Awareness -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-primary text-3xl mb-4 block" data-icon="history">history</span>
+<h3 class="text-headline-md text-white mb-2">Context Awareness</h3>
+<p class="text-on-surface-variant text-body-sm">Caches previous posts and conversation threads to provide coherent, relevant responses every time.</p>
+</div>
+<!-- Link Reading -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-sky-400 text-3xl mb-4 block" data-icon="link">link</span>
+<h3 class="text-headline-md text-white mb-2">Link Reading</h3>
+<p class="text-on-surface-variant text-body-sm">Automatically analyzes articles, PDFs, and web pages shared in the chat to provide instant summaries.</p>
+</div>
+<!-- Instigator Mode -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-orange-400 text-3xl mb-4 block" data-icon="forum">forum</span>
+<h3 class="text-headline-md text-white mb-2">'Instigator' Mode</h3>
+<p class="text-on-surface-variant text-body-sm">Keep the conversation flowing. The bot can auto-comment to stimulate engagement in quiet groups.</p>
+</div>
+<!-- Owner Co-pilot -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-purple-400 text-3xl mb-4 block" data-icon="person_search">person_search</span>
+<h3 class="text-headline-md text-white mb-2">Owner Co-pilot</h3>
+<p class="text-on-surface-variant text-body-sm">Personalized command set for administrators to manage their digital presence with surgical precision.</p>
+</div>
+<!-- Anti-spam & Focus -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-error text-3xl mb-4 block" data-icon="shield">shield</span>
+<h3 class="text-headline-md text-white mb-2">Anti-spam &amp; Focus</h3>
+<p class="text-on-surface-variant text-body-sm">Smart filtering detects noise and spam, keeping your Telegram feed clean and focused on what matters.</p>
+</div>
+</div>
+</section>
+<!-- How it Works -->
+<section class="bg-surface-container-low py-24">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-headline-lg text-white">The Neural Pipeline</h2>
+</div>
+<div class="relative flex flex-col md:flex-row justify-between items-center gap-8">
+<!-- Connector Line (Desktop) -->
+<div class="hidden md:block absolute top-12 left-0 w-full h-0.5 bg-gradient-to-r from-primary/10 via-primary to-primary/10 -z-10"></div>
+<div class="flex flex-col items-center text-center max-w-[200px]">
+<div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="send">send</span>
+</div>
+<h4 class="text-white font-bold mb-2">Telegram</h4>
+<p class="text-on-surface-variant text-xs">User sends a message or link</p>
+</div>
+<div class="md:pt-4">
+<span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<div class="flex flex-col items-center text-center max-w-[200px]">
+<div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="robot_2">robot_2</span>
+</div>
+<h4 class="text-white font-bold mb-2">The Bot</h4>
+<p class="text-on-surface-variant text-xs">Applies filters and retrieves context</p>
+</div>
+<div class="md:pt-4">
+<span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<div class="flex flex-col items-center text-center max-w-[200px]">
+<div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="memory">memory</span>
+</div>
+<h4 class="text-white font-bold mb-2">Local LLM</h4>
+<p class="text-on-surface-variant text-xs">Ollama processes through Qwen or Llama</p>
+</div>
+<div class="md:pt-4">
+<span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<div class="flex flex-col items-center text-center max-w-[200px]">
+<div class="w-20 h-20 rounded-full bg-surface-container-high border border-tertiary flex items-center justify-center mb-4 glow-border">
+<span class="material-symbols-outlined text-tertiary text-3xl" data-icon="check_circle">check_circle</span>
+</div>
+<h4 class="text-white font-bold mb-2">Response</h4>
+<p class="text-on-surface-variant text-xs">Instant, smart feedback in Telegram</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Installation Section -->
+<section class="max-w-7xl mx-auto px-6 py-24" id="setup">
+<div class="grid md:grid-cols-2 gap-16">
+<div>
+<h2 class="text-headline-lg text-white mb-6">Quick Installation</h2>
+<p class="text-on-surface-variant mb-8">Get your assistant up and running in minutes. Requires Node.js and Ollama installed on your system.</p>
+<div class="space-y-6">
+<div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
+<div class="flex justify-between items-center mb-4">
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 1: Install Dependencies</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
+</div>
+<pre class="font-code-snippet text-primary overflow-x-auto"><code>npm install</code></pre>
+</div>
+<div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
+<div class="flex justify-between items-center mb-4">
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 2: Pull LLM Model</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
+</div>
+<pre class="font-code-snippet text-primary overflow-x-auto"><code>ollama pull qwen2.5:1.5b</code></pre>
+</div>
+<div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
+<div class="flex justify-between items-center mb-4">
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 3: Configuration</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
+</div>
+<pre class="font-code-snippet text-primary overflow-x-auto"><code># .env
+TELEGRAM_BOT_TOKEN=your_token
+OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-3xl p-1 shadow-2xl">
+<img alt="Terminal Interface" class="w-full h-full object-cover rounded-[22px] opacity-40 mix-blend-screen" data-alt="Dark aesthetic coding environment with glowing neon lines of code and high tech hardware vibes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_g2VEC0w0KNfoeiCp4VLr1ihlQAiwAQXedULj_omcVByhAEE10n6vedmb78hEnj0yw972mN-UK1LEoRL-3e6aVz1U3kATUfU7Cfhsvc05zZzU3XtwMEpavw0QFOIAxomTF2LwlR4vwBodiLF_Ew5ufrlC__2gO0dogJW_nsb0ExmIlJjgLCd-N5cBz_cwlhhf8G4AFifjutshYdhybGI3sIOL6_V9q5G9La3JJqx0WSwqe_5wIBkExeYwBKsMpv2DJ90PLVnrSuE"/>
+</div>
+</div>
+</section>
+<!-- Management Commands -->
+<section class="bg-surface py-20" id="commands">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-col md:flex-row gap-12">
+<div class="md:w-1/3">
+<h2 class="text-headline-lg text-white mb-4">Command Center</h2>
+<p class="text-on-surface-variant">Control every aspect of your assistant with simple, powerful Telegram commands.</p>
+<div class="mt-8 flex gap-2">
+<div class="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-tertiary/10 border border-tertiary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary" data-icon="settings">settings</span>
+</div>
+</div>
+</div>
+<div class="md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/chatid</code>
+<span class="text-on-surface-variant text-sm">Get current chat context</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/status</code>
+<span class="text-on-surface-variant text-sm">Check bot health &amp; LLM</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/on</code>
+<span class="text-tertiary text-sm">Enable AI automation</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/off</code>
+<span class="text-error text-sm">Pause assistant features</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/clear</code>
+<span class="text-on-surface-variant text-sm">Flush local context cache</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/config</code>
+<span class="text-on-surface-variant text-sm">Live tune parameters</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ -->
+<section class="max-w-4xl mx-auto px-6 py-24">
+<h2 class="text-headline-lg text-white mb-12 text-center">Technical FAQ</h2>
+<div class="space-y-4">
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold">What are the minimum hardware requirements?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+                        For small models like Qwen2.5-1.5B or Llama3-3B, you need at least 8GB of RAM. A dedicated GPU (NVIDIA) with 4GB+ VRAM is recommended for instant responses, but CPU-only execution is supported through Ollama.
+                    </div>
+</details>
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold">Can I switch from local Ollama to OpenAI?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+                        Yes! The architecture is modular. You can update the provider settings in the `.env` file to use OpenAI or Anthropic API endpoints if you prefer cloud-based processing over local hardware.
+                    </div>
+</details>
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold">How does it handle long articles?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+                        The bot uses a recursive summarization technique. It fetches the link content, breaks it into manageable chunks, and creates a concise summary that fits within Telegram's message limits while preserving context.
+                    </div>
+</details>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-950 border-t border-slate-800 w-full py-12">
+<div class="flex flex-col md:flex-row justify-between items-center px-8 max-w-7xl mx-auto gap-6">
+<div class="flex flex-col gap-2">
+<div class="text-lg font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="smart_toy">smart_toy</span>
+                    Dump-Assistant-Bot
+                </div>
+<p class="font-['Space_Grotesk'] text-xs text-slate-500">
+                    © 2024 Dump-Assistant-Bot. Built for the future of automation.
+                </p>
+</div>
+<div class="flex gap-8">
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank">GitHub</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot/issues" target="_blank">Support</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank">Documentation</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="#">Terms</a>
+</div>
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center opacity-80 hover:opacity-100 hover:border-primary transition-all cursor-pointer">
+<span class="material-symbols-outlined text-white text-lg" data-icon="send">send</span>
+</div>
+<a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center opacity-80 hover:opacity-100 hover:border-primary transition-all cursor-pointer inline-flex">
+<span class="material-symbols-outlined text-white text-lg" data-icon="code">code</span>
+</a>
+</div>
+</div>
+</footer>
+  <script type="module" src="/src/main.js"></script>
+</body></html>
