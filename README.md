@@ -1,12 +1,10 @@
 # 🤖 Dump Assistant Bot
 
-<div align="center">
-  <img src="https://img.shields.io/badge/Node.js-18+-green?style=for-the-badge&logo=node.js" alt="Node.js 18+" />
-  <img src="https://img.shields.io/badge/LLM-Ollama_|_OpenAI-blue?style=for-the-badge&logo=openai" alt="LLM Support" />
-  <img src="https://img.shields.io/badge/Telegram-Bot_API-0088cc?style=for-the-badge&logo=telegram" alt="Telegram API" />
-</div>
-
-<br/>
+![Node.js](https://img.shields.io/badge/Node.js-22+-green?logo=node.js)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)
+![Ollama](https://img.shields.io/badge/Ollama-Supported-orange?logo=ollama)
+![OpenAI](https://img.shields.io/badge/OpenAI-Compatible-purple?logo=openai)
 
 **Умный ИИ-ассистент для вашего Telegram-канала и группы обсуждений.**  
 Бот работает автономно: читает ваши посты, анализирует ссылки, вовлекает аудиторию и снимает с вас рутину по ответам на частые вопросы.
@@ -27,7 +25,8 @@
 ## ⚙️ Установка и запуск
 
 ### 1. Подготовка
-Убедитесь, что у вас установлен **Node.js 18+** и **Ollama** (если планируете использовать локальную модель).
+
+Убедитесь, что у вас установлен **Node.js 22+** и **Ollama** (если планируете использовать локальную модель).
 
 ```bash
 # Склонируйте репозиторий и установите зависимости
@@ -35,36 +34,43 @@ npm install
 ```
 
 ### 2. Настройка модели
+
 Скачайте легковесную модель для Ollama (рекомендуется `qwen2.5:1.5b-instruct` или `7b`):
+
 ```bash
 ollama pull qwen2.5:1.5b-instruct
 ```
 
 ### 3. Конфигурация (.env)
+
 Скопируйте пример конфига и заполните свои данные:
+
 ```bash
 cp .env.example .env
 ```
 
 **Обязательные переменные в `.env`:**
+
 - `TELEGRAM_BOT_TOKEN` — токен от [@BotFather](https://t.me/BotFather)
 - `BOT_USERNAME` — юзернейм вашего бота (без `@`)
 - `ALLOWED_CHAT_IDS` — ID вашей группы обсуждений (узнать можно командой `/chatid`)
 - `OWNER_USER_IDS` — ваш личный Telegram ID (чтобы бот вас слушался)
 
-<details>
-<summary>Пример настроек для Ollama</summary>
+Пример настроек для Ollama
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5:1.5b-instruct
+OLLAMA_MODEL=qwen2.5:3b-instruct
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_NUM_PREDICT=300
+OLLAMA_NUM_CTX=4096
+OLLAMA_NUM_PREDICT=200
 LLM_TIMEOUT_MS=120000
 ```
-</details>
+
+
 
 ### 4. Подключение к Telegram
+
 1. Зайдите в `@BotFather` -> Выберите бота -> `Bot Settings` -> `Group Privacy` -> **Turn OFF**.
 2. Добавьте бота в группу обсуждений вашего канала и выдайте ему права администратора.
 3. Запустите бота:
@@ -88,10 +94,9 @@ npm start
 ---
 
 ## 📝 Настройка поведения (Промпт)
+
 Если вы хотите изменить характер бота (сделать его более дерзким, или наоборот, сухим и деловым), просто отредактируйте файл `prompts/assistant.md`. Бот подтягивает правила общения прямо оттуда.
 
 ---
 
-<div align="center">
-  <i>Разработано для автоматизации рутины и оживления коммьюнити. ☕</i>
-</div>
+*Разработано для автоматизации рутины и оживления коммьюнити. ☕*
