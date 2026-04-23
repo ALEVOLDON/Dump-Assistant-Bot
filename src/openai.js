@@ -13,22 +13,34 @@ async function createOpenAiDecision(config, payload) {
       : 'Если отвечать не нужно — should_reply: false, reply_text: "".'
   ].join("\n");
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.openAiApiKey}`
-    },
-    body: JSON.stringify({
-      model: config.openAiModel,
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemContent },
-        { role: "user", content: payload.userPrompt }
-      ]
-    })
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.llmTimeoutMs);
+  let response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.openAiApiKey}`
+      },
+      body: JSON.stringify({
+        model: config.openAiModel,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: payload.userPrompt }
+        ]
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error(`OpenAI timeout after ${config.llmTimeoutMs}ms`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

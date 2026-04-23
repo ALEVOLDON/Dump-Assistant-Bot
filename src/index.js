@@ -35,6 +35,12 @@ function isOwner(userId) {
   return config.ownerUserIds.length > 0 && config.ownerUserIds.includes(userId);
 }
 
+function isChannelOwner(senderChat) {
+  // Проверяем, что это канал и его ID в списке разрешенных владельцев
+  if (!senderChat || senderChat.type !== "channel") return false;
+  return config.ownerUserIds.length > 0 && config.ownerUserIds.includes(senderChat.id);
+}
+
 function isAllowedChat(chatId) {
   return config.allowedChatIds.length === 0 || config.allowedChatIds.includes(chatId);
 }
@@ -112,7 +118,7 @@ function analyzeMessage(message, text) {
   }
 
   // Владелец канала или сообщение от лица самого канала — отвечаем и выполняем команды
-  if (isOwner(message.from?.id) || message.sender_chat?.type === "channel") {
+  if (isOwner(message.from?.id) || isChannelOwner(message.sender_chat)) {
     return { skip: false, forceReply: true };
   }
 
@@ -188,8 +194,11 @@ function buildUserPrompt(message, text, forceReply, postContext) {
 
   let authorRole = "пользователь";
   let isOwnerMessage = false;
-  if (isOwner(message.from?.id) || message.sender_chat?.type === "channel") {
+  if (isOwner(message.from?.id)) {
     authorRole = "ВЛАДЕЛЕЦ КАНАЛА (твой босс)";
+    isOwnerMessage = true;
+  } else if (isChannelOwner(message.sender_chat)) {
+    authorRole = "КАНАЛ (официальный пост)";
     isOwnerMessage = true;
   }
 
@@ -272,7 +281,10 @@ async function maybeReply(ctx) {
   const text = sanitizeText(message.text || message.caption || "");
   const decision = analyzeMessage(message, text);
 
-  rememberMessage(message, "user", text);
+  // Сохраняем в историю только если сообщение не пропускается
+  if (!decision.skip) {
+    rememberMessage(message, "user", text);
+  }
 
   if (decision.skip) {
     console.log(`[Skip] thread=${getThreadKey(message)} reason=${decision.reason}`);

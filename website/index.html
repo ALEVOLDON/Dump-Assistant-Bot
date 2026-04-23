@@ -235,12 +235,8 @@ OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
 <span class="text-error text-sm">Pause assistant features</span>
 </div>
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
-<code class="text-primary font-bold">/clear</code>
-<span class="text-on-surface-variant text-sm">Flush local context cache</span>
-</div>
-<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
-<code class="text-primary font-bold">/config</code>
-<span class="text-on-surface-variant text-sm">Live tune parameters</span>
+<code class="text-primary font-bold">/usage</code>
+<span class="text-tertiary text-sm">Show detailed token usage statistics</span>
 </div>
 </div>
 </div>
@@ -265,7 +261,7 @@ OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
 <div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
-                        Yes! The architecture is modular. You can update the provider settings in the `.env` file to use OpenAI or Anthropic API endpoints if you prefer cloud-based processing over local hardware.
+                        Yes! The architecture is modular. You can update the provider settings in the `.env` file to use OpenAI API endpoints if you prefer cloud-based processing over local hardware.
                     </div>
 </details>
 <details class="glass-panel rounded-xl group overflow-hidden">
@@ -274,7 +270,7 @@ OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
 <div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
-                        The bot uses a recursive summarization technique. It fetches the link content, breaks it into manageable chunks, and creates a concise summary that fits within Telegram's message limits while preserving context.
+                        The bot fetches link content, extracts the main text, and provides a concise summary that fits within Telegram's message limits while preserving important context.
                     </div>
 </details>
 </div>

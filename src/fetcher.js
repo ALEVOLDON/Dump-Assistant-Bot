@@ -3,8 +3,13 @@
  * Используется для получения контекста ссылок из постов и комментариев.
  */
 
+const dns = require("dns");
+const { promisify } = require("util");
+const dnsLookup = promisify(dns.lookup);
+
 const MAX_TEXT_LENGTH = 2500; // символов из страницы
 const FETCH_TIMEOUT_MS = 8000;
+const MAX_REDIRECTS = 3;
 
 /** Вытащить ссылки из текста */
 function extractUrls(text) {
@@ -52,6 +57,27 @@ function isSafeUrl(urlString) {
   }
 }
 
+/** Проверка IP адреса через DNS резолвинг */
+async function isSafeHost(hostname) {
+  try {
+    const { address } = await dnsLookup(hostname, { family: 4 });
+    if (
+      address.startsWith("127.") ||
+      address.startsWith("10.") ||
+      address.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address) ||
+      address.startsWith("169.254.") ||
+      address === "0.0.0.0"
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    // Если DNS резолвинг не удался, считаем небезопасным
+    return false;
+  }
+}
+
 /**
  * Загрузить содержимое URL и вернуть очищенный текст.
  * Возвращает null если не удалось или контент не текстовый.
@@ -62,20 +88,64 @@ function isSafeUrl(urlString) {
 async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
   if (!isSafeUrl(url)) return null;
 
+  // Дополнительная проверка через DNS резолвинг
+  try {
+    const parsed = new URL(url);
+    const hostSafe = await isSafeHost(parsed.hostname);
+    if (!hostSafe) return null;
+  } catch {
+    return null;
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; TelegramAssistantBot/1.0)",
-        "Accept": "text/html,text/plain;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ru,en;q=0.9"
-      },
-      redirect: "follow"
-    });
+    let currentUrl = url;
+    let redirectCount = 0;
+    let response;
 
+    // Следуем по редиректам вручную с проверкой каждого URL
+    while (redirectCount <= MAX_REDIRECTS) {
+      // Проверяем текущий URL перед запросом
+      if (!isSafeUrl(currentUrl)) {
+        return null;
+      }
+
+      // DNS проверка для каждого редиректа
+      try {
+        const parsed = new URL(currentUrl);
+        const hostSafe = await isSafeHost(parsed.hostname);
+        if (!hostSafe) return null;
+      } catch {
+        return null;
+      }
+
+      response = await fetch(currentUrl, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; TelegramAssistantBot/1.0)",
+          "Accept": "text/html,text/plain;q=0.9,*/*;q=0.8",
+          "Accept-Language": "ru,en;q=0.9"
+        },
+        redirect: "manual" // Ручная обработка редиректов
+      });
+
+      // Если нет редиректа, выходим
+      if (!response.status || response.status < 300 || response.status >= 400) {
+        break;
+      }
+
+      // Обрабатываем редирект
+      const location = response.headers.get("location");
+      if (!location) break;
+
+      // Преобразуем относительный URL в абсолютный
+      currentUrl = new URL(location, currentUrl).toString();
+      redirectCount++;
+    }
+
+    if (redirectCount > MAX_REDIRECTS) return null;
     if (!response.ok) return null;
 
     const contentType = response.headers.get("content-type") || "";
