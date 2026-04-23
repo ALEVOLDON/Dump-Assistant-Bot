@@ -23,6 +23,48 @@ const bot = new Bot(config.telegramBotToken);
 const state = readState(config.statePath);
 const posts = new PostCache(config.postsPath);
 const runtimeHistory = new Map();
+const MAX_RUNTIME_THREADS = 100; // максимум тредов в памяти
+
+// Логирование с уровнями
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const logLevels = { error: 0, warn: 1, info: 2, debug: 3 };
+
+function log(level, message, ...args) {
+  if (logLevels[level] <= logLevels[LOG_LEVEL]) {
+    const timestamp = new Date().toISOString().slice(11, 19);
+    const prefix = `[${timestamp}][${level.toUpperCase()}]`;
+    console.log(prefix, message, ...args);
+  }
+}
+
+const logger = {
+  error: (msg, ...args) => log('error', msg, ...args),
+  warn: (msg, ...args) => log('warn', msg, ...args),
+  info: (msg, ...args) => log('info', msg, ...args),
+  debug: (msg, ...args) => log('debug', msg, ...args)
+};
+
+// Очистка старых тредов из памяти
+function cleanupRuntimeHistory() {
+  if (runtimeHistory.size <= MAX_RUNTIME_THREADS) return;
+  
+  // Удаляем самые старые треды (на основе lastReplyAt из state)
+  const entries = Array.from(runtimeHistory.entries());
+  const threadsWithAge = entries.map(([key, history]) => {
+    const threadState = state.threads[key];
+    const lastActivity = threadState?.lastReplyAt || 0;
+    return { key, lastActivity };
+  });
+  
+  // Сортируем по возрасту и удаляем старые
+  threadsWithAge.sort((a, b) => a.lastActivity - b.lastActivity);
+  const toDelete = threadsWithAge.slice(0, runtimeHistory.size - MAX_RUNTIME_THREADS);
+  
+  toDelete.forEach(({ key }) => {
+    runtimeHistory.delete(key);
+    logger.debug(`Removed old thread from memory: ${key}`);
+  });
+}
 
 if (state.autoReplyEnabled === undefined) {
   state.autoReplyEnabled = config.autoReplyEnabled;
@@ -68,6 +110,9 @@ function rememberMessage(message, role, text) {
     text: sanitizeText(text).slice(0, 300)
   });
   runtimeHistory.set(key, current.slice(-config.recentMessagesLimit));
+  
+  // Периодическая очистка
+  cleanupRuntimeHistory();
 }
 
 function getRecentMessages(message) {
@@ -98,6 +143,9 @@ function analyzeMessage(message, text) {
   if (!state.autoReplyEnabled) return { skip: true, reason: "auto_reply_disabled" };
 
   const fromId = message.from?.id;
+  // Исключения для системных ботов Telegram:
+  // 1087968824 - Telegram BotFather (для команд)
+  // 136817688 - Telegram (официальные уведомления)
   if (message.from?.is_bot && fromId !== 1087968824 && fromId !== 136817688) {
     return { skip: true, reason: "bot_message" };
   }
@@ -287,7 +335,7 @@ async function maybeReply(ctx) {
   }
 
   if (decision.skip) {
-    console.log(`[Skip] thread=${getThreadKey(message)} reason=${decision.reason}`);
+    logger.debug(`Skip thread=${getThreadKey(message)} reason=${decision.reason}`);
     return;
   }
 
@@ -296,10 +344,10 @@ async function maybeReply(ctx) {
   // Параллельно собираем контекст поста и ссылок
   const postContext = await getPostContext(message, text);
   if (postContext.postText) {
-    console.log(`[Context] thread=${getThreadKey(message)} post=${postContext.postText.slice(0, 60)}...`);
+    logger.debug(`Context thread=${getThreadKey(message)} post=${postContext.postText.slice(0, 60)}...`);
   }
   if (Object.keys(postContext.urlContents).length > 0) {
-    console.log(`[Context] Loaded ${Object.keys(postContext.urlContents).length} URL(s)`);
+    logger.debug(`Context loaded ${Object.keys(postContext.urlContents).length} URL(s)`);
   }
 
   let replyText = "";
@@ -316,7 +364,7 @@ async function maybeReply(ctx) {
     storeUsage(response.usage);
 
     if (!result.should_reply) {
-      console.log(`[Silent] thread=${getThreadKey(message)} reason=${result.reason || "llm_no"}`);
+      logger.debug(`Silent thread=${getThreadKey(message)} reason=${result.reason || "llm_no"}`);
       writeState(config.statePath, state);
       return;
     }
@@ -324,7 +372,7 @@ async function maybeReply(ctx) {
     replyText = trimReply(result.reply_text || "");
   } catch (error) {
     if (!isRecoverableLlmError(error)) throw error;
-    console.error(`[LLM Error] ${error.message}`);
+    logger.error(`LLM Error: ${error.message}`);
     if (forceReply) {
       replyText = "На связи. Напишите вопрос подробнее.";
     }
@@ -594,6 +642,29 @@ bot.on("message", async (ctx) => {
 
 bot.catch((error) => {
   console.error("[BotError]", error.error);
+});
+
+// Graceful shutdown - сохраняем состояние при остановке
+function gracefulShutdown() {
+  console.log("\n🔄 Сохраняю состояние перед остановкой...");
+  try {
+    writeState(config.statePath, state);
+    console.log("✅ Состояние сохранено");
+  } catch (error) {
+    console.error("❌ Ошибка сохранения состояния:", error.message);
+  }
+  process.exit(0);
+}
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown();
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown();
 });
 
 bot.start({

@@ -29,6 +29,42 @@ function readNumber(name, fallback) {
 
 const dataDir = path.join(process.cwd(), "data");
 
+// Валидация конфигурации
+function validateConfig() {
+  const errors = [];
+  
+  if (!config.telegramBotToken) {
+    errors.push("TELEGRAM_BOT_TOKEN обязателен");
+  } else if (!config.telegramBotToken.match(/^\d+:[a-zA-Z0-9_-]{35}$/)) {
+    errors.push("TELEGRAM_BOT_TOKEN имеет неверный формат");
+  }
+  
+  if (!config.botUsername) {
+    errors.push("BOT_USERNAME обязателен");
+  }
+  
+  if (config.ownerUserIds.length === 0) {
+    errors.push("OWNER_USER_IDS должен содержать хотя бы один ID");
+  }
+  
+  if (config.llmProvider === "openai" && !config.openAiApiKey) {
+    errors.push("OPENAI_API_KEY обязателен при LLM_PROVIDER=openai");
+  }
+  
+  if (config.llmProvider === "ollama" && !config.ollamaBaseUrl) {
+    errors.push("OLLAMA_BASE_URL обязателен при LLM_PROVIDER=ollama");
+  }
+  
+  if (errors.length > 0) {
+    console.error("❌ Ошибки конфигурации:");
+    errors.forEach(error => console.error(`  - ${error}`));
+    console.error("\nПроверьте файл .env");
+    process.exit(1);
+  }
+}
+
+validateConfig();
+
 module.exports = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   llmProvider: (process.env.LLM_PROVIDER || "ollama").toLowerCase(),
