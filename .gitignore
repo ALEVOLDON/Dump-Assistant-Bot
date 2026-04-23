@@ -4,3 +4,9 @@ data/
 .DS_Store
 
 website/dist/
+
+# Локальные заметки и документация
+HANDOFF.md
+NOTES.md
+TODO.md
+DEBUG.md
