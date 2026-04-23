@@ -24,6 +24,7 @@ const state = readState(config.statePath);
 const posts = new PostCache(config.postsPath);
 const runtimeHistory = new Map();
 const MAX_RUNTIME_THREADS = 100; // максимум тредов в памяти
+const MAX_RELAY_TARGETS = 1000;
 
 // Логирование с уровнями
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -43,6 +44,41 @@ const logger = {
   info: (msg, ...args) => log('info', msg, ...args),
   debug: (msg, ...args) => log('debug', msg, ...args)
 };
+
+function anonymizeId(value) {
+  if (!Number.isFinite(value)) return "n/a";
+  const str = String(value);
+  return str.length <= 4 ? `***${str}` : `${"*".repeat(str.length - 4)}${str.slice(-4)}`;
+}
+
+function ensureRelayState() {
+  if (!state.relayTargets || typeof state.relayTargets !== "object") {
+    state.relayTargets = {};
+  }
+}
+
+function storeRelayTarget(ownerMessageId, targetUserId) {
+  ensureRelayState();
+  state.relayTargets[String(ownerMessageId)] = {
+    targetUserId,
+    createdAt: Date.now()
+  };
+
+  const entries = Object.entries(state.relayTargets);
+  if (entries.length > MAX_RELAY_TARGETS) {
+    entries
+      .sort((a, b) => (a[1]?.createdAt || 0) - (b[1]?.createdAt || 0))
+      .slice(0, entries.length - MAX_RELAY_TARGETS)
+      .forEach(([key]) => delete state.relayTargets[key]);
+  }
+
+  writeState(config.statePath, state);
+}
+
+function getRelayTarget(replyMessageId) {
+  ensureRelayState();
+  return state.relayTargets[String(replyMessageId)]?.targetUserId || null;
+}
 
 // Очистка старых тредов из памяти
 function cleanupRuntimeHistory() {
@@ -70,6 +106,7 @@ if (state.autoReplyEnabled === undefined) {
   state.autoReplyEnabled = config.autoReplyEnabled;
   writeState(config.statePath, state);
 }
+ensureRelayState();
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -379,13 +416,13 @@ async function maybeReply(ctx) {
   }
 
   if (!replyText) {
-    console.log(`[Silent] thread=${getThreadKey(message)} reason=empty_reply`);
+    logger.debug(`Silent thread=${getThreadKey(message)} reason=empty_reply`);
     writeState(config.statePath, state);
     return;
   }
 
   await ctx.reply(replyText, { reply_parameters: { message_id: message.message_id } });
-  console.log(`[Reply] force=${forceReply} text=${replyText.slice(0, 80)}`);
+  logger.info(`Reply sent thread=${getThreadKey(message)} force=${forceReply}`);
 
   // ─── Уведомление владельцу в личку ───────────────────────────────────────
   const notifyOwnerId = config.ownerUserIds[0];
@@ -406,7 +443,7 @@ async function maybeReply(ctx) {
         parse_mode: "HTML",
         disable_notification: false
       })
-      .catch((e) => console.error(`[Notify Error] ${e.message}`));
+      .catch((e) => logger.error(`Notify Error: ${e.message}`));
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -432,7 +469,7 @@ function cacheChannelPost(message) {
 
   // Сохраняем по message_id — это станет thread_id для комментариев
   posts.set(message.message_id, { text, urls, date: message.date * 1000 });
-  console.log(`[Post cached] id=${message.message_id} urls=${urls.length} text=${text.slice(0, 60)}`);
+  logger.info(`[Post cached] id=${message.message_id} urls=${urls.length}`);
 }
 
 function isRealAutoForwardedChannelPost(message) {
@@ -450,7 +487,7 @@ async function maybeReplyToPost(ctx) {
   const text = sanitizeText(message.text || message.caption || "");
   if (!text) return; // Нет текста — нечего комментировать
 
-  console.log(`[AutoComment] Generating first comment for post: ${message.message_id}`);
+  logger.info(`[AutoComment] Generating first comment for post: ${message.message_id}`);
 
   const systemPrompt = `Ты — умный и харизматичный ИИ-ассистент этого Telegram-канала.
 Твоя задача — написать первый комментарий к новому посту автора.
@@ -473,13 +510,13 @@ async function maybeReplyToPost(ctx) {
     const replyText = trimReply(response.result.reply_text || "");
     if (replyText) {
       await ctx.reply(replyText, { reply_parameters: { message_id: message.message_id } });
-      console.log(`[AutoComment Reply] ${replyText.slice(0, 80)}`);
+      logger.info(`[AutoComment Reply] post=${message.message_id}`);
       // Сохраняем в историю треда, чтобы бот помнил свой комментарий
       rememberMessage(message, "assistant", replyText);
     }
   } catch (error) {
     if (!isRecoverableLlmError(error)) throw error;
-    console.error(`[LLM Error AutoComment] ${error.message}`);
+    logger.error(`[LLM Error AutoComment] ${error.message}`);
   }
 }
 
@@ -494,37 +531,36 @@ bot.on("message", async (ctx, next) => {
     const fromId = ctx.from?.id;
     const username = ctx.from?.username ? `@${ctx.from.username}` : (ctx.from?.first_name || "Пользователь");
 
-    console.log(`[Private] from=${fromId} (${username}) isOwner=${isOwner(fromId)}`);
+    logger.info(`[Private] sender=${anonymizeId(fromId)} isOwner=${isOwner(fromId)}`);
 
     if (isOwner(fromId)) {
       // Владелец пишет боту в личку — пробуем переслать ответ пользователю
       const replyTo = msg.reply_to_message;
-      if (replyTo && replyTo.text && replyTo.text.includes("(ID:")) {
-        const match = replyTo.text.match(/\(ID:\s*(\d+)\)/);
-        if (match && match[1]) {
-          const targetId = parseInt(match[1]);
-          console.log(`[Relay Owner→User] targetId=${targetId} text=${text.slice(0, 60)}`);
-          try {
-            await ctx.copyMessage(targetId);
-            await ctx.reply("✅ Ответ отправлен пользователю.");
-          } catch (e) {
-            console.error(`[Relay Owner→User Error] ${e.message}`);
-            await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
-          }
-        } else {
-          console.log(`[Relay Owner] Reply не содержит ID пользователя`);
+      const replyMessageId = replyTo?.message_id;
+      const targetId = replyMessageId ? getRelayTarget(replyMessageId) : null;
+      if (targetId) {
+        logger.info(`[Relay Owner→User] target=${anonymizeId(targetId)}`);
+        try {
+          await ctx.copyMessage(targetId);
+          await ctx.reply("✅ Ответ отправлен пользователю.");
+        } catch (e) {
+          logger.error(`[Relay Owner→User Error] ${e.message}`);
+          await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
         }
       } else {
-        console.log(`[Relay Owner] Сообщение без Reply или без ID — игнорируем`);
+        logger.warn("[Relay Owner] Нет безопасной связи reply -> пользователь");
+        await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от бота.");
       }
       return;
     } else {
       // Пользователь пишет боту в личку → пересылаем владельцу
       const primaryOwnerId = config.ownerUserIds[0];
-      console.log(`[Relay User→Owner] from=${fromId} owner=${primaryOwnerId} text=${text.slice(0, 60)}`);
+      logger.info(
+        `[Relay User→Owner] sender=${anonymizeId(fromId)} owner=${anonymizeId(primaryOwnerId)} type=${msg.text ? "text" : "media"}`
+      );
 
       if (!primaryOwnerId) {
-        console.error(`[Relay Error] OWNER_USER_IDS не задан в .env!`);
+        logger.error("[Relay Error] OWNER_USER_IDS не задан в .env!");
         await ctx.reply("Извините, бот временно недоступен.");
         return;
       }
@@ -532,16 +568,22 @@ bot.on("message", async (ctx, next) => {
       try {
         const header = `📨 Сообщение от ${username} (ID: ${fromId})`;
         if (msg.text) {
-          await bot.api.sendMessage(primaryOwnerId, `${header}:\n\n${msg.text}`);
-          console.log(`[Relay OK] Текст переслан владельцу`);
+          const sent = await bot.api.sendMessage(primaryOwnerId, `${header}:\n\n${msg.text}`);
+          storeRelayTarget(sent.message_id, fromId);
+          logger.info("[Relay OK] Текст переслан владельцу");
         } else {
-          await bot.api.sendMessage(primaryOwnerId, `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`, { parse_mode: "Markdown" });
+          const sent = await bot.api.sendMessage(
+            primaryOwnerId,
+            `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`,
+            { parse_mode: "Markdown" }
+          );
+          storeRelayTarget(sent.message_id, fromId);
           await ctx.copyMessage(primaryOwnerId);
-          console.log(`[Relay OK] Медиа переслано владельцу`);
+          logger.info("[Relay OK] Медиа переслано владельцу");
         }
         await ctx.reply("✅ Ваше сообщение отправлено администратору. Ожидайте ответа.");
       } catch (e) {
-        console.error(`[Relay Error] Не удалось переслать владельцу: ${e.message}`);
+        logger.error(`[Relay Error] Не удалось переслать владельцу: ${e.message}`);
         await ctx.reply("Извините, произошла ошибка. Попробуйте позже.");
       }
       return;
@@ -557,8 +599,9 @@ bot.on("message", async (ctx, next) => {
   }
 
   // Debug-лог для всех остальных сообщений
-  const text = sanitizeText(msg.text || msg.caption || "");
-  console.log(`[DEBUG] chat=${msg.chat.id} allowed=${isAllowedChat(msg.chat.id)} auto_forward=${Boolean(msg.is_automatic_forward)} sender_chat=${msg.sender_chat?.type || "none"} from=${msg.from?.id || "none"} is_bot=${msg.from?.is_bot} text="${text.slice(0, 60)}"`);
+  logger.debug(
+    `[DEBUG] chat=${msg.chat.id} allowed=${isAllowedChat(msg.chat.id)} auto_forward=${Boolean(msg.is_automatic_forward)} sender_chat=${msg.sender_chat?.type || "none"} has_text=${Boolean(msg.text || msg.caption)}`
+  );
 
   return next(); // ВАЖНО: передаём управление следующему обработчику
 });
@@ -616,10 +659,10 @@ bot.on("message:text", async (ctx) => {
   try {
     const message = ctx.message || ctx.msg;
     if (!message) return;
-    console.log(`[Msg] chat=${ctx.chat.id} user=${ctx.from?.id} text=${sanitizeText(message.text).slice(0, 100)}`);
+    logger.debug(`[Msg] chat=${ctx.chat.id} user=${anonymizeId(ctx.from?.id)} has_text=${Boolean(message.text)}`);
     await maybeReply(ctx);
   } catch (error) {
-    console.error("[Error]", error);
+    logger.error("[Error]", error);
   }
 });
 
@@ -633,25 +676,25 @@ bot.on("message", async (ctx) => {
   if (!text) return;
 
   try {
-    console.log(`[MsgFallback] chat=${ctx.chat.id} sender_chat=${message.sender_chat?.type || "none"} text=${text.slice(0, 100)}`);
+    logger.debug(`[MsgFallback] chat=${ctx.chat.id} sender_chat=${message.sender_chat?.type || "none"}`);
     await maybeReply(ctx);
   } catch (error) {
-    console.error("[FallbackError]", error);
+    logger.error("[FallbackError]", error);
   }
 });
 
 bot.catch((error) => {
-  console.error("[BotError]", error.error);
+  logger.error("[BotError]", error.error);
 });
 
 // Graceful shutdown - сохраняем состояние при остановке
 function gracefulShutdown() {
-  console.log("\n🔄 Сохраняю состояние перед остановкой...");
+  logger.info("🔄 Сохраняю состояние перед остановкой...");
   try {
     writeState(config.statePath, state);
-    console.log("✅ Состояние сохранено");
+    logger.info("✅ Состояние сохранено");
   } catch (error) {
-    console.error("❌ Ошибка сохранения состояния:", error.message);
+    logger.error(`❌ Ошибка сохранения состояния: ${error.message}`);
   }
   process.exit(0);
 }
@@ -659,19 +702,19 @@ function gracefulShutdown() {
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  logger.error("❌ Uncaught Exception:", error);
   gracefulShutdown();
 });
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
   gracefulShutdown();
 });
 
 bot.start({
   onStart(botInfo) {
-    console.log(`✓ Bot started as @${botInfo.username}`);
-    console.log(`  Allowed chats: ${config.allowedChatIds.length ? config.allowedChatIds.join(", ") : "all"}`);
-    console.log(`  LLM: ${config.llmProvider} / ${config.llmProvider === "ollama" ? config.ollamaModel : config.openAiModel}`);
-    console.log(`  Posts cached: ${Object.keys(posts.cache).length}`);
+    logger.info(`✓ Bot started as @${botInfo.username}`);
+    logger.info(`  Allowed chats: ${config.allowedChatIds.length ? config.allowedChatIds.join(", ") : "all"}`);
+    logger.info(`  LLM: ${config.llmProvider} / ${config.llmProvider === "ollama" ? config.ollamaModel : config.openAiModel}`);
+    logger.info(`  Posts cached: ${Object.keys(posts.cache).length}`);
   }
 });

@@ -4,7 +4,9 @@
  */
 
 const dns = require("dns");
+const net = require("net");
 const { promisify } = require("util");
+const { Agent } = require("undici");
 const dnsLookup = promisify(dns.lookup);
 
 const MAX_TEXT_LENGTH = 2500; // символов из страницы
@@ -32,49 +34,77 @@ function stripHtml(html) {
     .trim();
 }
 
+function isPrivateIpv4(ip) {
+  return (
+    ip.startsWith("127.") ||
+    ip.startsWith("10.") ||
+    ip.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) ||
+    ip.startsWith("169.254.") ||
+    ip === "0.0.0.0"
+  );
+}
+
+function normalizeIpv6(ip) {
+  return ip.toLowerCase().replace(/^\[|\]$/g, "");
+}
+
+function isPrivateIpv6(ip) {
+  const normalized = normalizeIpv6(ip);
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd")
+  );
+}
+
+function isPrivateIpAddress(ip) {
+  const family = net.isIP(ip);
+  if (family === 4) return isPrivateIpv4(ip);
+  if (family === 6) return isPrivateIpv6(ip);
+  return true;
+}
+
 /** Проверка URL на безопасность (SSRF защита) */
 function isSafeUrl(urlString) {
   try {
     const parsed = new URL(urlString);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
     const host = parsed.hostname;
-    if (
-      host === "localhost" ||
-      host.startsWith("127.") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
-      host.startsWith("169.254.") ||
-      host.endsWith(".local") ||
-      host.includes("::") ||
-      host === "0.0.0.0"
-    ) {
-      return false;
+    if (host === "localhost" || host.endsWith(".local")) return false;
+
+    const hostIpFamily = net.isIP(host);
+    if (hostIpFamily) {
+      return !isPrivateIpAddress(host);
     }
+
     return true;
   } catch {
     return false;
   }
 }
 
-/** Проверка IP адреса через DNS резолвинг */
-async function isSafeHost(hostname) {
+/** Резолвим хост и возвращаем только безопасные IP */
+async function resolveSafeAddresses(hostname) {
+  const hostIpFamily = net.isIP(hostname);
+  if (hostIpFamily) {
+    return isPrivateIpAddress(hostname) ? [] : [hostname];
+  }
+
   try {
-    const { address } = await dnsLookup(hostname, { family: 4 });
-    if (
-      address.startsWith("127.") ||
-      address.startsWith("10.") ||
-      address.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address) ||
-      address.startsWith("169.254.") ||
-      address === "0.0.0.0"
-    ) {
-      return false;
+    const addresses = await dnsLookup(hostname, { all: true, verbatim: true });
+    if (!addresses.length) return [];
+
+    // Если домен резолвится хотя бы в один private IP — блокируем целиком.
+    if (addresses.some(({ address }) => isPrivateIpAddress(address))) {
+      return [];
     }
-    return true;
+
+    return [...new Set(addresses.map(({ address }) => address))];
   } catch {
-    // Если DNS резолвинг не удался, считаем небезопасным
-    return false;
+    return [];
   }
 }
 
@@ -87,15 +117,6 @@ async function isSafeHost(hostname) {
  */
 async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
   if (!isSafeUrl(url)) return null;
-
-  // Дополнительная проверка через DNS резолвинг
-  try {
-    const parsed = new URL(url);
-    const hostSafe = await isSafeHost(parsed.hostname);
-    if (!hostSafe) return null;
-  } catch {
-    return null;
-  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -112,24 +133,34 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
         return null;
       }
 
-      // DNS проверка для каждого редиректа
-      try {
-        const parsed = new URL(currentUrl);
-        const hostSafe = await isSafeHost(parsed.hostname);
-        if (!hostSafe) return null;
-      } catch {
-        return null;
-      }
+      const parsed = new URL(currentUrl);
+      const safeAddresses = await resolveSafeAddresses(parsed.hostname);
+      if (!safeAddresses.length) return null;
 
-      response = await fetch(currentUrl, {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; TelegramAssistantBot/1.0)",
-          "Accept": "text/html,text/plain;q=0.9,*/*;q=0.8",
-          "Accept-Language": "ru,en;q=0.9"
-        },
-        redirect: "manual" // Ручная обработка редиректов
+      // Важно: фиксируем DNS-ответ в lookup, чтобы избежать DNS rebinding между check и connect.
+      const dispatcher = new Agent({
+        connect: {
+          lookup(_hostname, _options, callback) {
+            const selected = safeAddresses[0];
+            callback(null, selected, net.isIP(selected));
+          }
+        }
       });
+
+      try {
+        response = await fetch(currentUrl, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; TelegramAssistantBot/1.0)",
+            "Accept": "text/html,text/plain;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ru,en;q=0.9"
+          },
+          redirect: "manual", // Ручная обработка редиректов
+          dispatcher
+        });
+      } finally {
+        await dispatcher.close();
+      }
 
       // Если нет редиректа, выходим
       if (!response.status || response.status < 300 || response.status >= 400) {

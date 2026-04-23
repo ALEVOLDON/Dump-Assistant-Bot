@@ -10,7 +10,8 @@ const DEFAULT_STATE = {
     totalTokens: 0
   },
   threads: {},
-  history: {}
+  history: {},
+  relayTargets: {}
 };
 
 function ensureDir(filePath) {
@@ -35,7 +36,8 @@ function readState(filePath) {
         ...(parsed.usage || {})
       },
       threads: parsed.threads || {},
-      history: parsed.history || {}
+      history: parsed.history || {},
+      relayTargets: parsed.relayTargets || {}
     };
   } catch (error) {
     fs.writeFileSync(filePath, JSON.stringify(DEFAULT_STATE, null, 2));
