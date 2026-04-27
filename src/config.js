@@ -28,10 +28,23 @@ function readNumber(name, fallback) {
 }
 
 const dataDir = path.join(process.cwd(), "data");
+const llmProvider = (process.env.LLM_PROVIDER || "gemini").toLowerCase();
+
+function getActiveLlmModel(provider, config) {
+  if (provider === "gemini") return config.geminiModel;
+  if (provider === "openai") return config.openAiModel;
+  if (provider === "ollama") return config.ollamaModel;
+  return "";
+}
 
 module.exports = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
-  llmProvider: (process.env.LLM_PROVIDER || "ollama").toLowerCase(),
+  llmProvider,
+  // Gemini API
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  geminiBaseUrl: (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, ""),
+  // OpenAI API
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
   openAiBaseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
@@ -42,6 +55,7 @@ module.exports = {
   ollamaNumPredict: readNumber("OLLAMA_NUM_PREDICT", 200),
   botUsername: (process.env.BOT_USERNAME || "").replace(/^@/, "").toLowerCase(),
   allowedChatIds: parseIdList(process.env.ALLOWED_CHAT_IDS),
+  allowAllChats: readBoolean("ALLOW_ALL_CHATS", false),
   ownerUserIds: parseIdList(process.env.OWNER_USER_IDS),
   channelAbout: process.env.CHANNEL_ABOUT || "",
   autoReplyEnabled: readBoolean("AUTO_REPLY_ENABLED", true),
@@ -57,9 +71,11 @@ module.exports = {
 
 // Валидация конфигурации (после создания объекта)
 const config = module.exports;
+config.activeLlmModel = getActiveLlmModel(config.llmProvider, config);
 
 function validateConfig() {
   const errors = [];
+  const validProviders = new Set(["gemini", "openai", "ollama"]);
   
   if (!config.telegramBotToken) {
     errors.push("TELEGRAM_BOT_TOKEN обязателен");
@@ -73,6 +89,18 @@ function validateConfig() {
   
   if (config.ownerUserIds.length === 0) {
     errors.push("OWNER_USER_IDS должен содержать хотя бы один ID");
+  }
+
+  if (config.allowedChatIds.length === 0 && !config.allowAllChats) {
+    errors.push("ALLOWED_CHAT_IDS обязателен. Если нужен открытый режим, установите ALLOW_ALL_CHATS=true");
+  }
+
+  if (!validProviders.has(config.llmProvider)) {
+    errors.push("LLM_PROVIDER должен быть одним из: gemini, openai, ollama");
+  }
+
+  if (config.llmProvider === "gemini" && !config.geminiApiKey) {
+    errors.push("GEMINI_API_KEY обязателен при LLM_PROVIDER=gemini");
   }
   
   if (config.llmProvider === "openai" && !config.openAiApiKey) {

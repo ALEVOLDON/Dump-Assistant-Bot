@@ -1,13 +1,17 @@
-const { createOpenAiDecision } = require("./openai");
+const { createGeminiDecision, createOpenAiDecision } = require("./openai");
 const { createOllamaDecision } = require("./ollama");
 
 async function createAssistantDecision(config, payload) {
   let response;
 
-  if (config.llmProvider === "ollama") {
+  if (config.llmProvider === "gemini") {
+    response = await createGeminiDecision(config, payload);
+  } else if (config.llmProvider === "openai") {
+    response = await createOpenAiDecision(config, payload);
+  } else if (config.llmProvider === "ollama") {
     response = await createOllamaDecision(config, payload);
   } else {
-    response = await createOpenAiDecision(config, payload);
+    throw new Error(`Unsupported LLM_PROVIDER: ${config.llmProvider}`);
   }
 
   // Страховка: если forceReply=true, но модель всё равно сказала "нет" — принудительно включаем

@@ -9,9 +9,6 @@ const { extractUrls, fetchUrlContent } = require("./fetcher");
 if (!config.telegramBotToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN in .env");
 }
-if (config.llmProvider === "openai" && !config.openAiApiKey) {
-  throw new Error("Missing OPENAI_API_KEY in .env for LLM_PROVIDER=openai");
-}
 
 // Создаём папку data если нет
 if (!fs.existsSync(config.dataDir)) {
@@ -121,7 +118,7 @@ function isChannelOwner(senderChat) {
 }
 
 function isAllowedChat(chatId) {
-  return config.allowedChatIds.length === 0 || config.allowedChatIds.includes(chatId);
+  return config.allowAllChats || config.allowedChatIds.includes(chatId);
 }
 
 function getThreadKey(message) {
@@ -343,7 +340,10 @@ function isRecoverableLlmError(error) {
   return (
     msg.includes("Ollama API error") ||
     msg.includes("Ollama timeout") ||
+    msg.includes("Gemini API error") ||
+    msg.includes("Gemini timeout") ||
     msg.includes("OpenAI API error") ||
+    msg.includes("OpenAI timeout") ||
     msg.includes("insufficient_quota") ||
     msg.includes("fetch failed") ||
     msg.includes("ECONNREFUSED")
@@ -614,7 +614,7 @@ bot.command("status", async (ctx) => {
   await ctx.reply([
     `auto_reply: ${state.autoReplyEnabled ? "on" : "off"}`,
     `provider: ${config.llmProvider}`,
-    `model: ${config.llmProvider === "ollama" ? config.ollamaModel : config.openAiModel}`,
+    `model: ${config.activeLlmModel}`,
     `requests: ${u.requests}`,
     `tokens_total: ${u.totalTokens}`,
     `posts_cached: ${Object.keys(posts.cache).length}`
@@ -713,8 +713,8 @@ process.on('unhandledRejection', (reason, promise) => {
 bot.start({
   onStart(botInfo) {
     logger.info(`✓ Bot started as @${botInfo.username}`);
-    logger.info(`  Allowed chats: ${config.allowedChatIds.length ? config.allowedChatIds.join(", ") : "all"}`);
-    logger.info(`  LLM: ${config.llmProvider} / ${config.llmProvider === "ollama" ? config.ollamaModel : config.openAiModel}`);
+    logger.info(`  Allowed chats: ${config.allowAllChats ? "all" : config.allowedChatIds.join(", ")}`);
+    logger.info(`  LLM: ${config.llmProvider} / ${config.activeLlmModel}`);
     logger.info(`  Posts cached: ${Object.keys(posts.cache).length}`);
   }
 });

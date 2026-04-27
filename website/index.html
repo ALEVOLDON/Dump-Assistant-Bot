@@ -35,13 +35,13 @@
 <div class="space-y-6">
 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container/30 border border-outline-variant text-primary text-label-md">
 <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-                        POWERED BY OLLAMA
+                        POWERED BY CLOUD LLMs
                     </div>
 <h1 class="text-5xl md:text-7xl font-headline-lg text-white leading-tight">
                         Dump-Assistant-Bot: Your Smart <span class="text-primary">AI Sidekick</span> for Telegram
                     </h1>
 <p class="text-on-surface-variant text-body-lg max-w-lg">
-                        Automate routine tasks and engage your communities with a context-aware assistant that runs locally on your hardware.
+                        Automate routine tasks and engage your communities with a context-aware assistant powered by Gemini, OpenAI, or optional local Ollama.
                     </p>
 <div class="flex flex-wrap gap-4 pt-4">
 <a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" class="bg-primary-container text-on-primary-container px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:brightness-110 transition-all">
@@ -74,14 +74,14 @@
 <section class="max-w-7xl mx-auto px-6 py-20" id="features">
 <div class="text-center mb-16">
 <h2 class="text-headline-lg text-white mb-4">Hyper-Competent Automation</h2>
-<p class="text-on-surface-variant max-w-2xl mx-auto">Designed for privacy-conscious users and community managers who need enterprise-grade AI without the subscription fees.</p>
+<p class="text-on-surface-variant max-w-2xl mx-auto">Designed for community managers who need fast cloud AI by default, with OpenAI-compatible and local options when they need them.</p>
 </div>
 <div class="grid md:grid-cols-3 gap-6">
-<!-- Local AI -->
+<!-- Cloud AI -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-tertiary text-3xl mb-4 block" data-icon="database">database</span>
-<h3 class="text-headline-md text-white mb-2">Local AI</h3>
-<p class="text-on-surface-variant text-body-sm">Full Ollama support. Keep your data on your own machine. No external API calls needed for core tasks.</p>
+<h3 class="text-headline-md text-white mb-2">Cloud AI</h3>
+<p class="text-on-surface-variant text-body-sm">Gemini is the recommended default, with OpenAI-compatible endpoints and Ollama available as alternatives.</p>
 </div>
 <!-- Context Awareness -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
@@ -148,8 +148,8 @@
 <div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
 <span class="material-symbols-outlined text-primary text-3xl" data-icon="memory">memory</span>
 </div>
-<h4 class="text-white font-bold mb-2">Local LLM</h4>
-<p class="text-on-surface-variant text-xs">Ollama processes through Qwen or Llama</p>
+<h4 class="text-white font-bold mb-2">Cloud LLM</h4>
+<p class="text-on-surface-variant text-xs">Gemini or OpenAI generates the response</p>
 </div>
 <div class="md:pt-4">
 <span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
@@ -169,7 +169,7 @@
 <div class="grid md:grid-cols-2 gap-16">
 <div>
 <h2 class="text-headline-lg text-white mb-6">Quick Installation</h2>
-<p class="text-on-surface-variant mb-8">Get your assistant up and running in minutes. Requires Node.js and Ollama installed on your system.</p>
+<p class="text-on-surface-variant mb-8">Get your assistant up and running in minutes. Requires Node.js and an API key for your selected cloud provider.</p>
 <div class="space-y-6">
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
@@ -180,10 +180,10 @@
 </div>
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
-<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 2: Pull LLM Model</span>
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 2: Configure Provider</span>
 <span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
 </div>
-<pre class="font-code-snippet text-primary overflow-x-auto"><code>ollama pull qwen2.5:1.5b</code></pre>
+<pre class="font-code-snippet text-primary overflow-x-auto"><code>cp .env.example .env</code></pre>
 </div>
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
@@ -192,7 +192,8 @@
 </div>
 <pre class="font-code-snippet text-primary overflow-x-auto"><code># .env
 TELEGRAM_BOT_TOKEN=your_token
-OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_key</code></pre>
 </div>
 </div>
 </div>
@@ -252,16 +253,16 @@ OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
 <div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
-                        For small models like Qwen2.5-1.5B or Llama3-3B, you need at least 8GB of RAM. A dedicated GPU (NVIDIA) with 4GB+ VRAM is recommended for instant responses, but CPU-only execution is supported through Ollama.
+                        The recommended cloud setup only needs Node.js 22+ and a network connection. Local Ollama mode is optional and depends on the model size and your CPU/GPU.
                     </div>
 </details>
 <details class="glass-panel rounded-xl group overflow-hidden">
 <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
-<span class="text-white font-bold">Can I switch from local Ollama to OpenAI?</span>
+<span class="text-white font-bold">Can I switch between Gemini, OpenAI, and Ollama?</span>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
 <div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
-                        Yes! The architecture is modular. You can update the provider settings in the `.env` file to use OpenAI API endpoints if you prefer cloud-based processing over local hardware.
+                        Yes. Set `LLM_PROVIDER` to `gemini`, `openai`, or `ollama`, then fill the matching API key or local Ollama settings in `.env`.
                     </div>
 </details>
 <details class="glass-panel rounded-xl group overflow-hidden">

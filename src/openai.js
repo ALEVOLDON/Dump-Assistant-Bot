@@ -1,3 +1,85 @@
+async function createGeminiDecision(config, payload) {
+  const url = `${config.geminiBaseUrl}/models/${config.geminiModel}:generateContent`;
+
+  // Отладка - проверяем ключ
+  if (!config.geminiApiKey) {
+    throw new Error('Gemini API key is missing! Check GEMINI_API_KEY in .env');
+  }
+  console.log('[Gemini] Using model:', config.geminiModel);
+
+  const systemContent = [
+    payload.systemPrompt.trim(),
+    "",
+    "═══",
+    "Формат ответа — ТОЛЬКО валидный JSON:",
+    '{"should_reply": boolean, "reply_text": "...", "reason": "...", "risk": "low|medium|high"}',
+    "",
+    payload.forceReply
+      ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
+      : 'Если отвечать не нужно — should_reply: false, reply_text: "".'
+  ].join("\n");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.llmTimeoutMs);
+  let response;
+
+  try {
+    response = await fetch(`${url}?key=${config.geminiApiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `${systemContent}\n\n${payload.userPrompt}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.4
+        }
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error(`Gemini timeout after ${config.llmTimeoutMs}ms`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  const usage = data.usageMetadata || {};
+
+  let parsed;
+  try {
+    // Gemini может возвращать JSON с ```json``` обёрткой
+    let cleanContent = content;
+    if (content.includes('```json')) {
+      cleanContent = content.replace(/```json\n?/, '').replace(/```$/, '');
+    }
+    parsed = JSON.parse(cleanContent);
+  } catch {
+    console.error("[Gemini] Bad JSON:", content.slice(0, 200));
+    parsed = { should_reply: false, reason: "invalid_json", reply_text: "", risk: "low" };
+  }
+
+  return {
+    result: parsed,
+    usage: {
+      promptTokens: usage.promptTokenCount || 0,
+      completionTokens: usage.candidatesTokenCount || 0,
+      totalTokens: usage.totalTokenCount || 0
+    }
+  };
+}
+
 async function createOpenAiDecision(config, payload) {
   const url = `${config.openAiBaseUrl}/chat/completions`;
 
@@ -69,4 +151,4 @@ async function createOpenAiDecision(config, payload) {
   };
 }
 
-module.exports = { createOpenAiDecision };
+module.exports = { createGeminiDecision, createOpenAiDecision };
