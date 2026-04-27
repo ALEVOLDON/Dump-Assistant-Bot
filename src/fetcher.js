@@ -35,13 +35,22 @@ function stripHtml(html) {
 }
 
 function isPrivateIpv4(ip) {
+  const parts = ip.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return true;
+  }
+
+  const [a, b] = parts;
   return (
-    ip.startsWith("127.") ||
-    ip.startsWith("10.") ||
-    ip.startsWith("192.168.") ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) ||
-    ip.startsWith("169.254.") ||
-    ip === "0.0.0.0"
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
   );
 }
 
@@ -51,12 +60,17 @@ function normalizeIpv6(ip) {
 
 function isPrivateIpv6(ip) {
   const normalized = normalizeIpv6(ip);
+  const mappedIpv4 = normalized.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mappedIpv4) return isPrivateIpv4(mappedIpv4[1]);
+
   return (
     normalized === "::1" ||
     normalized === "::" ||
+    normalized.startsWith("64:ff9b:") ||
     normalized.startsWith("fe80:") ||
     normalized.startsWith("fc") ||
-    normalized.startsWith("fd")
+    normalized.startsWith("fd") ||
+    normalized.startsWith("ff")
   );
 }
 
