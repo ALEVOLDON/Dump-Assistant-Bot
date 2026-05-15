@@ -4,12 +4,14 @@
  */
 
 const dns = require("dns");
+const http = require("http");
+const https = require("https");
 const net = require("net");
 const { promisify } = require("util");
-const { Agent } = require("undici");
 const dnsLookup = promisify(dns.lookup);
 
 const MAX_TEXT_LENGTH = 2500; // символов из страницы
+const MAX_RESPONSE_BYTES = 2_000_000;
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_REDIRECTS = 3;
 
@@ -19,9 +21,25 @@ function extractUrls(text) {
   return [...new Set(matches)].slice(0, 3); // не более 3 ссылок
 }
 
-/** Очистить HTML от тегов и мусора, оставить текст */
+/** Очистить HTML от тегов и мусора, оставить текст + вытянуть title/description/author */
 function stripHtml(html) {
-  return html
+  // Вытягиваем Title (обычный или OG)
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i);
+  const title = (ogTitleMatch?.[1] || titleMatch?.[1] || "").trim();
+
+  // Вытягиваем Meta Description
+  const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i) ||
+                   html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["'][^>]*>/i) ||
+                   html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i);
+  const description = (descMatch?.[1] || "").trim();
+
+  // Вытягиваем автора/канал (часто в itemprop="name" или og:site_name)
+  const authorMatch = html.match(/<meta[^>]*itemprop=["']name["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i) ||
+                     html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i);
+  const author = (authorMatch?.[1] || "").trim();
+
+  const cleanBody = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
@@ -32,6 +50,13 @@ function stripHtml(html) {
     .replace(/&gt;/g, ">")
     .replace(/\s{2,}/g, " ")
     .trim();
+
+  let context = "";
+  if (title) context += `ЗАГОЛОВОК: ${title}\n`;
+  if (author) context += `АВТОР/КАНАЛ: ${author}\n`;
+  if (description) context += `ОПИСАНИЕ: ${description}\n`;
+  
+  return (context + "\n" + cleanBody).trim();
 }
 
 function isPrivateIpv4(ip) {
@@ -122,6 +147,86 @@ async function resolveSafeAddresses(hostname) {
   }
 }
 
+function requestTextResponse(urlString, safeAddresses, signal) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlString);
+    const client = parsed.protocol === "https:" ? https : http;
+    const selectedAddress = safeAddresses[0];
+
+    const request = client.request({
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port || undefined,
+      path: `${parsed.pathname}${parsed.search}`,
+      method: "GET",
+      signal,
+      lookup(_hostname, options, callback) {
+        const family = net.isIP(selectedAddress);
+        if (options?.all) {
+          callback(null, [{ address: selectedAddress, family }]);
+          return;
+        }
+        callback(null, selectedAddress, family);
+      },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+      }
+    }, (response) => {
+      const chunks = [];
+      let size = 0;
+
+      response.on("data", (chunk) => {
+        size += chunk.length;
+        if (size > MAX_RESPONSE_BYTES) {
+          request.destroy(new Error("Response too large"));
+          return;
+        }
+        chunks.push(chunk);
+      });
+
+      response.on("end", () => {
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          headers: response.headers,
+          text: Buffer.concat(chunks).toString("utf8")
+        });
+      });
+    });
+
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+function isYoutubeUrl(urlString) {
+  try {
+    const host = new URL(urlString).hostname.toLowerCase();
+    return host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com");
+  } catch {
+    return false;
+  }
+}
+
+async function fetchYoutubeOembedContext(urlString, signal) {
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
+  const parsed = new URL(oembedUrl);
+  const safeAddresses = await resolveSafeAddresses(parsed.hostname);
+  if (!safeAddresses.length) return null;
+
+  const response = await requestTextResponse(oembedUrl, safeAddresses, signal);
+  if (!response.ok) return null;
+
+  const data = JSON.parse(response.text);
+  const lines = [];
+  if (data.title) lines.push(`ЗАГОЛОВОК: ${data.title}`);
+  if (data.author_name) lines.push(`АВТОР/КАНАЛ: ${data.author_name}`);
+  if (data.provider_name) lines.push(`ИСТОЧНИК: ${data.provider_name}`);
+  return lines.join("\n") || null;
+}
+
 /**
  * Загрузить содержимое URL и вернуть очищенный текст.
  * Возвращает null если не удалось или контент не текстовый.
@@ -140,6 +245,11 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
     let redirectCount = 0;
     let response;
 
+    if (isYoutubeUrl(url)) {
+      const oembedContext = await fetchYoutubeOembedContext(url, controller.signal).catch(() => null);
+      if (oembedContext) return oembedContext.slice(0, MAX_TEXT_LENGTH);
+    }
+
     // Следуем по редиректам вручную с проверкой каждого URL
     while (redirectCount <= MAX_REDIRECTS) {
       // Проверяем текущий URL перед запросом
@@ -152,29 +262,7 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
       if (!safeAddresses.length) return null;
 
       // Важно: фиксируем DNS-ответ в lookup, чтобы избежать DNS rebinding между check и connect.
-      const dispatcher = new Agent({
-        connect: {
-          lookup(_hostname, _options, callback) {
-            const selected = safeAddresses[0];
-            callback(null, selected, net.isIP(selected));
-          }
-        }
-      });
-
-      try {
-        response = await fetch(currentUrl, {
-          signal: controller.signal,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; TelegramAssistantBot/1.0)",
-            "Accept": "text/html,text/plain;q=0.9,*/*;q=0.8",
-            "Accept-Language": "ru,en;q=0.9"
-          },
-          redirect: "manual", // Ручная обработка редиректов
-          dispatcher
-        });
-      } finally {
-        await dispatcher.close();
-      }
+      response = await requestTextResponse(currentUrl, safeAddresses, controller.signal);
 
       // Если нет редиректа, выходим
       if (!response.status || response.status < 300 || response.status >= 400) {
@@ -182,7 +270,7 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
       }
 
       // Обрабатываем редирект
-      const location = response.headers.get("location");
+      const location = response.headers.location;
       if (!location) break;
 
       // Преобразуем относительный URL в абсолютный
@@ -193,11 +281,14 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
     if (redirectCount > MAX_REDIRECTS) return null;
     if (!response.ok) return null;
 
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = response.headers["content-type"] || "";
     if (!contentType.includes("text/")) return null;
 
-    const raw = await response.text();
+    const raw = response.text;
     const text = stripHtml(raw);
+    if (isYoutubeUrl(url) && /^ЗАГОЛОВОК:\s*- YouTube\b/.test(text)) {
+      return null;
+    }
     return text.slice(0, MAX_TEXT_LENGTH) || null;
   } catch {
     return null;
