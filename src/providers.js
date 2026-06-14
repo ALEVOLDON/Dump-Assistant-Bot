@@ -36,7 +36,19 @@ async function createGeminiDecision(config, payload) {
           }]
         }],
         generationConfig: {
-          temperature: 0.4
+          temperature: 0.4,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              should_reply: { type: "BOOLEAN" },
+              reply_text: { type: "STRING" },
+              reason: { type: "STRING" },
+              risk: { type: "STRING", enum: ["low", "medium", "high"] }
+            },
+            required: ["should_reply", "reply_text"]
+          }
         }
       }),
       signal: controller.signal
@@ -59,12 +71,7 @@ async function createGeminiDecision(config, payload) {
 
   let parsed;
   try {
-    // Gemini может возвращать JSON с ```json``` обёрткой
-    let cleanContent = content;
-    if (content.includes('```json')) {
-      cleanContent = content.replace(/```json\n?/, '').replace(/```$/, '');
-    }
-    parsed = JSON.parse(cleanContent);
+    parsed = JSON.parse(content);
   } catch {
     console.error("[Gemini] Bad JSON:", content.slice(0, 200));
     parsed = { should_reply: false, reason: "invalid_json", reply_text: "", risk: "low" };
