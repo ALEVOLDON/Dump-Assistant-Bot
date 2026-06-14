@@ -5,6 +5,7 @@ const { readState, writeState } = require("./state");
 const { createAssistantDecision } = require("./llm");
 const { PostCache } = require("./posts");
 const { extractUrls, fetchUrlContent } = require("./fetcher");
+const { sendRichMessageWithFallback } = require("./rich");
 
 if (!config.telegramBotToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN in .env");
@@ -331,7 +332,11 @@ function buildUserPrompt(message, text, forceReply, postContext) {
 // ─── утилиты ─────────────────────────────────────────────────────────────────
 
 function trimReply(text) {
-  const s = sanitizeText(text);
+  const s = (text || "")
+    .split("\n")
+    .map(line => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .trim();
   return s.length <= config.maxReplyChars ? s : `${s.slice(0, config.maxReplyChars - 1).trimEnd()}…`;
 }
 
@@ -421,7 +426,7 @@ async function maybeReply(ctx) {
     return;
   }
 
-  await ctx.reply(replyText, { reply_parameters: { message_id: message.message_id } });
+  await sendRichMessageWithFallback(ctx, replyText, message.message_id);
   logger.info(`Reply sent thread=${getThreadKey(message)} force=${forceReply}`);
 
   // ─── Уведомление владельцу в личку ───────────────────────────────────────
@@ -515,7 +520,7 @@ async function maybeReplyToPost(ctx) {
 Цель: дать краткий TL;DR (выжимку) или интересную мысль по теме, чтобы вовлечь аудиторию.
 
 Правила:
-- Пиши коротко (1-2 предложения максимум).
+- Пиши коротко (1-2 предложения максимум). Если в посте есть список или структура, ты можешь оформить это в виде короткого маркированного списка или маленькой таблицы для наглядности.
 - Живой тон, без шаблонов "Привет!".
 - Используй ТОЛЬКО информацию из предоставленного контекста ссылки.
 - Если контекст ссылки не загружен или содержит только общие слова сервиса, не делай TL;DR и не угадывай тему ролика/статьи.
@@ -553,7 +558,7 @@ async function maybeReplyToPost(ctx) {
     storeUsage(response.usage);
     const replyText = trimReply(response.result.reply_text || "");
     if (replyText) {
-      await ctx.reply(replyText, { reply_parameters: { message_id: message.message_id } });
+      await sendRichMessageWithFallback(ctx, replyText, message.message_id);
       logger.info(`[AutoComment Reply] post=${message.message_id}`);
       // Сохраняем в историю треда, чтобы бот помнил свой комментарий
       rememberMessage(message, "assistant", replyText);
