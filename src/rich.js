@@ -4,7 +4,8 @@ const config = require("./config");
 // Настройка marked
 marked.use({
   mangle: false,
-  headerIds: false
+  headerIds: false,
+  breaks: true
 });
 
 /**

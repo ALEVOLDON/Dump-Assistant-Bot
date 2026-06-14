@@ -108,6 +108,97 @@ ensureRelayState();
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+function richBlockToMarkdown(block) {
+  if (!block) return "";
+  switch (block.type) {
+    case "heading": {
+      const level = block.size || 1;
+      return "#".repeat(level) + " " + (block.text || "") + "\n\n";
+    }
+    case "paragraph": {
+      return (block.text || "") + "\n\n";
+    }
+    case "preformatted":
+    case "code": {
+      const lang = block.language || "";
+      return "```" + lang + "\n" + (block.text || "") + "\n```\n\n";
+    }
+    case "block_quote":
+    case "quotation": {
+      return "> " + (block.text || "") + "\n\n";
+    }
+    case "divider": {
+      return "---\n\n";
+    }
+    case "photo": {
+      const photo = block.photo?.at(-1);
+      if (photo && photo.file_id) {
+        return `![Photo](file_id:${photo.file_id})\n\n`;
+      }
+      return "";
+    }
+    case "table": {
+      const rows = block.cells || block.rows;
+      if (!rows || rows.length === 0) return "";
+      let markdown = "";
+      rows.forEach((rowObj, rowIndex) => {
+        const cells = Array.isArray(rowObj) ? rowObj : (rowObj.cells || []);
+        markdown += "| " + cells.map(cell => typeof cell === "string" ? cell : (cell.text || "")).join(" | ") + " |\n";
+        if (rowIndex === 0) {
+          markdown += "| " + cells.map(cell => {
+            const align = typeof cell === "string" ? "left" : (cell.align || "left");
+            if (align === "center") return " :---: ";
+            if (align === "right") return " ---: ";
+            return " :--- ";
+          }).join(" | ") + " |\n";
+        }
+      });
+      return markdown + "\n";
+    }
+    case "list": {
+      const items = block.items || [];
+      const isOrdered = block.ordered || false;
+      let markdown = "";
+      items.forEach((item, index) => {
+        let itemText = "";
+        if (typeof item === "string") {
+          itemText = item;
+        } else if (item.text) {
+          itemText = item.text;
+        } else if (item.content) {
+          if (typeof item.content === "string") {
+            itemText = item.content;
+          } else if (item.content.text) {
+            itemText = item.content.text;
+          }
+        }
+        const prefix = isOrdered ? `${index + 1}. ` : "- ";
+        markdown += prefix + itemText + "\n";
+      });
+      return markdown + "\n";
+    }
+    default:
+      if (block.text) {
+        return block.text + "\n\n";
+      }
+      return "";
+  }
+}
+
+function extractText(message) {
+  if (!message) return "";
+  if (message.rich_message) {
+    if (message.rich_message.markdown) {
+      return String(message.rich_message.markdown).trim();
+    }
+    if (Array.isArray(message.rich_message.blocks)) {
+      return message.rich_message.blocks.map(b => richBlockToMarkdown(b)).join("").trim();
+    }
+  }
+  return String(message.text || message.caption || "").trim();
+}
+
+
 function isOwner(userId) {
   return config.ownerUserIds.length > 0 && config.ownerUserIds.includes(userId);
 }
@@ -368,7 +459,7 @@ async function maybeReply(ctx) {
   const message = ctx.message || ctx.msg;
   if (!message) return;
 
-  const text = sanitizeText(message.text || message.caption || "");
+  const text = sanitizeText(extractText(message));
   const decision = analyzeMessage(message, text);
 
   // Сохраняем в историю только если сообщение не пропускается
@@ -469,7 +560,7 @@ async function maybeReply(ctx) {
  * контекст когда подписчики задают вопросы в комментариях.
  */
 function cacheChannelPost(message) {
-  const text = sanitizeText(message.text || message.caption || "");
+  const text = extractText(message);
   const urls = extractUrls(text);
 
   // Сохраняем по message_id — это станет thread_id для комментариев
@@ -479,7 +570,6 @@ function cacheChannelPost(message) {
 
 function isRealAutoForwardedChannelPost(message) {
   if (!message?.is_automatic_forward) return false;
-  const text = sanitizeText(message.text || message.caption || "");
 
   if (message.sender_chat?.type === "channel") return true;
   if (!message.from) return true;
@@ -489,7 +579,7 @@ function isRealAutoForwardedChannelPost(message) {
 async function maybeReplyToPost(ctx) {
   if (!state.autoReplyEnabled) return;
   const message = ctx.message || ctx.msg;
-  const text = sanitizeText(message.text || message.caption || "");
+  const text = extractText(message);
   if (!text) return; // Нет текста — нечего комментировать
 
   logger.info(`[AutoComment] Generating first comment for post: ${message.message_id}`);
@@ -583,22 +673,120 @@ bot.on("message", async (ctx, next) => {
     logger.info(`[Private] sender=${anonymizeId(fromId)} isOwner=${isOwner(fromId)}`);
 
     if (isOwner(fromId)) {
-      // Владелец пишет боту в личку — пробуем переслать ответ пользователю
       const replyTo = msg.reply_to_message;
-      const replyMessageId = replyTo?.message_id;
-      const targetId = replyMessageId ? getRelayTarget(replyMessageId) : null;
-      if (targetId) {
-        logger.info(`[Relay Owner→User] target=${anonymizeId(targetId)}`);
-        try {
-          await ctx.copyMessage(targetId);
-          await ctx.reply("✅ Ответ отправлен пользователю.");
-        } catch (e) {
-          logger.error(`[Relay Owner→User Error] ${e.message}`);
-          await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
+      if (replyTo) {
+        const replyMessageId = replyTo.message_id;
+        const targetId = getRelayTarget(replyMessageId);
+        if (targetId) {
+          logger.info(`[Relay Owner→User] target=${anonymizeId(targetId)}`);
+          try {
+            await ctx.copyMessage(targetId);
+            await ctx.reply("✅ Ответ отправлен пользователю.");
+          } catch (e) {
+            logger.error(`[Relay Owner→User Error] ${e.message}`);
+            await ctx.reply(`❌ Ошибка отправки: ${e.message}`);
+          }
+        } else {
+          logger.warn("[Relay Owner] Нет безопасной связи reply -> пользователь");
+          await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от бота.");
         }
       } else {
-        logger.warn("[Relay Owner] Нет безопасной связи reply -> пользователь");
-        await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от бота.");
+        // Это не ответ на пересланное сообщение -> проверяем на команду публикации нового поста
+        const caption = msg.caption || "";
+        const rawText = (msg.text || caption).trim();
+        
+        if (rawText.startsWith("/post")) {
+          const postText = rawText.slice(5).trim();
+          if (!postText) {
+            await ctx.reply("❌ Текст поста пуст! Напишите ваш Markdown-текст после команды /post.");
+            return;
+          }
+          
+          try {
+            const channelChatId = config.channelChatId;
+            logger.info(`[Publishing] Publishing post to channel: ${channelChatId}`);
+            
+            let finalMarkdown = postText;
+            let photoSentSeparately = false;
+            
+            // Если прикреплено фото
+            if (msg.photo?.length) {
+              const photo = msg.photo.at(-1);
+              logger.info(`[Publishing] Photo detected. Attempting to upload to tmpfiles.org for unified Rich Message...`);
+              
+              try {
+                // Скачиваем файл из Telegram
+                const file = await bot.api.getFile(photo.file_id);
+                const downloadUrl = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
+                const downloadResponse = await fetch(downloadUrl);
+                const arrayBuffer = await downloadResponse.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                // Формируем FormData для отправки на tmpfiles.org
+                const fileObj = new File([buffer], "photo.jpg", { type: "image/jpeg" });
+                const formData = new FormData();
+                formData.append("file", fileObj);
+                
+                const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
+                  method: "POST",
+                  body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                  throw new Error(`Upload returned status ${uploadResponse.status}`);
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                const originalUrl = uploadResult.data?.url;
+                if (!originalUrl) {
+                  throw new Error("No URL returned from upload server");
+                }
+                
+                const directUrl = originalUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
+                logger.info(`[Publishing] Photo successfully hosted at: ${directUrl}`);
+                
+                // Вставляем картинку в самое начало Markdown-поста
+                finalMarkdown = `<img src="${directUrl}" />\n\n${postText}`;
+              } catch (uploadErr) {
+                logger.warn(`[Publishing] Temporary hosting failed (${uploadErr.message}). Falling back to sending photo separately.`);
+                // Если не получилось загрузить, отправляем фото отдельно (fallback)
+                await bot.api.sendPhoto(channelChatId, photo.file_id);
+                photoSentSeparately = true;
+              }
+            }
+            
+            // Конвертируем Markdown в HTML
+            const { marked } = require("marked");
+            const htmlContent = marked.parse(finalMarkdown).trim();
+            
+            // Отправляем как Rich Message
+            const result = await bot.api.raw.sendRichMessage({
+              chat_id: channelChatId,
+              rich_message: {
+                html: htmlContent,
+                markdown: finalMarkdown
+              }
+            });
+            
+            const postLink = result.chat.username 
+              ? `https://t.me/${result.chat.username}/${result.message_id}`
+              : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
+            
+            let successMsg = `✅ Пост успешно опубликован в канале!\nСсылка: ${postLink}`;
+            if (photoSentSeparately) {
+              successMsg += "\n\n⚠️ Обратите внимание: из-за ошибки временного хостинга картинок фото было отправлено отдельным сообщением перед текстом.";
+            }
+            
+            await ctx.reply(successMsg);
+            logger.info(`[Publishing] Post successfully published. Message ID: ${result.message_id}`);
+          } catch (err) {
+            logger.error(`[Publishing] Failed to publish: ${err.message}`);
+            await ctx.reply(`❌ Ошибка публикации: ${err.message}`);
+          }
+        } else {
+          // Если это просто текст в личку без /post и без реплая
+          await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от пользователя, либо используйте `/post <текст>` для публикации поста в канал.");
+        }
       }
       return;
     } else {

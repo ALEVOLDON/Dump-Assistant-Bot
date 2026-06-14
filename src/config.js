@@ -57,6 +57,7 @@ module.exports = {
   allowedChatIds: parseIdList(process.env.ALLOWED_CHAT_IDS),
   allowAllChats: readBoolean("ALLOW_ALL_CHATS", false),
   ownerUserIds: parseIdList(process.env.OWNER_USER_IDS),
+  channelChatId: process.env.CHANNEL_CHAT_ID || "-1001329670526",
   channelAbout: process.env.CHANNEL_ABOUT || "",
   autoReplyEnabled: readBoolean("AUTO_REPLY_ENABLED", true),
   maxReplyChars: readNumber("MAX_REPLY_CHARS", 260),
