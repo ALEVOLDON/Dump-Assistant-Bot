@@ -1,12 +1,41 @@
 const { marked } = require("marked");
 const config = require("./config");
 
+// Custom renderer for marked to format text appropriately for Telegram Rich Message
+const renderer = {
+  paragraph(arg) {
+    const inlineHtml = this.parser.parseInline(arg.tokens);
+    return inlineHtml + '\n\n';
+  },
+  heading(arg) {
+    const inlineHtml = this.parser.parseInline(arg.tokens);
+    return `<b>${inlineHtml}</b>\n\n`;
+  }
+};
+
 // Настройка marked
 marked.use({
+  renderer,
   mangle: false,
   headerIds: false,
   breaks: true
 });
+
+/**
+ * Конвертирует входящий Markdown в HTML для Telegram Rich Messages,
+ * учитывая особенности рендеринга нативных списков, таблиц и переносов строк.
+ * 
+ * @param {string} text - текст Markdown
+ * @returns {string} - готовый HTML для отправки
+ */
+function markdownToHtml(text) {
+  if (!text) return "";
+  let html = marked.parse(text).trim();
+  // Заменяем теги <br> / <br /> на переносы строк \n, так как Telegram
+  // не поддерживает теги <br> и игнорирует/вырезает их, в то время как \n
+  // полноценно поддерживается для перевода строки.
+  return html.replace(/<br\s*\/?>/gi, '\n');
+}
 
 /**
  * Отправляет сообщение как Rich Message (для Telegram Bot API 10.1+).
@@ -20,8 +49,8 @@ marked.use({
  */
 async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
   try {
-    // Конвертируем Markdown в HTML
-    const htmlContent = marked.parse(text).trim();
+    // Конвертируем Markdown в HTML с помощью единого хелпера
+    const htmlContent = markdownToHtml(text);
     
     // Вызов raw-метода через grammY
     await ctx.api.raw.sendRichMessage({
@@ -47,5 +76,7 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
 }
 
 module.exports = {
+  markdownToHtml,
   sendRichMessageWithFallback
 };
+

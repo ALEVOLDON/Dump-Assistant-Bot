@@ -5,7 +5,7 @@ const { readState, writeState } = require("./state");
 const { createAssistantDecision } = require("./llm");
 const { PostCache } = require("./posts");
 const { extractUrls, fetchUrlContent } = require("./fetcher");
-const { sendRichMessageWithFallback } = require("./rich");
+const { sendRichMessageWithFallback, markdownToHtml } = require("./rich");
 
 if (!config.telegramBotToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN in .env");
@@ -756,8 +756,7 @@ bot.on("message", async (ctx, next) => {
             }
             
             // Конвертируем Markdown в HTML
-            const { marked } = require("marked");
-            const htmlContent = marked.parse(finalMarkdown).trim();
+            const htmlContent = markdownToHtml(finalMarkdown);
             
             // Отправляем как Rich Message
             const result = await bot.api.raw.sendRichMessage({

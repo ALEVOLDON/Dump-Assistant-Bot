@@ -1,6 +1,6 @@
 const { Bot } = require("grammy");
 const config = require("./config");
-const { marked } = require("marked");
+const { markdownToHtml } = require("./rich");
 
 const bot = new Bot(config.telegramBotToken);
 
@@ -67,7 +67,7 @@ async function test() {
 Конец теста.
 `;
 
-    const htmlContent = marked.parse(markdown).trim();
+    const htmlContent = markdownToHtml(markdown);
     const result = await bot.api.raw.sendRichMessage({
       chat_id: channelChatId,
       rich_message: {
