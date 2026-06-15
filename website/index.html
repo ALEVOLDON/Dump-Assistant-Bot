@@ -16,13 +16,16 @@
                 Dump-Assistant-Bot
             </div>
 <nav class="hidden md:flex items-center gap-8 font-['Space_Grotesk'] text-sm tracking-tight">
-<a class="text-sky-400 border-b-2 border-sky-400 pb-1 transition-all duration-300" href="#features">Features</a>
-<a class="text-slate-400 hover:text-white transition-colors" href="#setup">Setup</a>
-<a class="text-slate-400 hover:text-white transition-colors" href="#commands">Commands</a>
+<a class="text-sky-400 border-b-2 border-sky-400 pb-1 transition-all duration-300" href="#features" data-i18n="nav_features">Features</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#setup" data-i18n="nav_setup">Setup</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#commands" data-i18n="nav_commands">Commands</a>
 </nav>
-<a href="#setup" class="bg-primary-container text-on-primary-container px-5 py-2 rounded-xl font-bold transition-all duration-300 active:scale-95 hover:bg-white/5 hover:text-sky-300">
+<div class="flex items-center gap-4">
+<button id="lang-toggle" class="text-slate-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-xl px-4 py-2 text-sm font-bold transition-all active:scale-95">RU</button>
+<a href="#setup" data-i18n="nav_add_to_telegram" class="bg-primary-container text-on-primary-container px-5 py-2 rounded-xl font-bold transition-all duration-300 active:scale-95 hover:bg-white/5 hover:text-sky-300">
                 Add to Telegram
             </a>
+</div>
 </div>
 </header>
 <main class="pt-24">
@@ -35,20 +38,20 @@
 <div class="space-y-6">
 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container/30 border border-outline-variant text-primary text-label-md">
 <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-                        POWERED BY CLOUD LLMs
+                        <span data-i18n="hero_powered">POWERED BY CLOUD LLMs</span>
                     </div>
-<h1 class="text-5xl md:text-7xl font-headline-lg text-white leading-tight">
+<h1 class="text-5xl md:text-7xl font-headline-lg text-white leading-tight" data-i18n="hero_title">
                         Dump-Assistant-Bot: Your Smart <span class="text-primary">AI Sidekick</span> for Telegram
                     </h1>
-<p class="text-on-surface-variant text-body-lg max-w-lg">
+<p class="text-on-surface-variant text-body-lg max-w-lg" data-i18n="hero_desc">
                         Automate routine tasks and engage your communities with a context-aware assistant powered by Gemini, OpenAI, or optional local Ollama.
                     </p>
 <div class="flex flex-wrap gap-4 pt-4">
 <a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" class="bg-primary-container text-on-primary-container px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:brightness-110 transition-all">
 <span class="material-symbols-outlined" data-icon="terminal">terminal</span>
-                            Get Started on GitHub
+                            <span data-i18n="hero_github">Get Started on GitHub</span>
                         </a>
-<a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank" class="border border-outline text-white px-8 py-4 rounded-xl font-bold hover:bg-white/5 transition-all">
+<a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank" class="border border-outline text-white px-8 py-4 rounded-xl font-bold hover:bg-white/5 transition-all" data-i18n="hero_docs">
                             View Documentation
                         </a>
 </div>
@@ -62,9 +65,9 @@
 <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
 <span class="material-symbols-outlined text-white text-sm" data-icon="smart_toy">smart_toy</span>
 </div>
-<span class="text-white font-bold text-sm">Bot Processing...</span>
+<span class="text-white font-bold text-sm" data-i18n="hero_processing">Bot Processing...</span>
 </div>
-<p class="text-on-surface-variant text-sm">"Analyzing the provided link. Here is the summary of the key findings..."</p>
+<p class="text-on-surface-variant text-sm" data-i18n="hero_mock_text">"Analyzing the provided link. Here is the summary of the key findings..."</p>
 </div>
 </div>
 </div>
@@ -73,45 +76,57 @@
 <!-- Features Grid -->
 <section class="max-w-7xl mx-auto px-6 py-20" id="features">
 <div class="text-center mb-16">
-<h2 class="text-headline-lg text-white mb-4">Hyper-Competent Automation</h2>
-<p class="text-on-surface-variant max-w-2xl mx-auto">Designed for community managers who need fast cloud AI by default, with OpenAI-compatible and local options when they need them.</p>
+<h2 class="text-headline-lg text-white mb-4" data-i18n="features_title">Hyper-Competent Automation</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto" data-i18n="features_desc">Designed for community managers who need fast cloud AI by default, with OpenAI-compatible and local options when they need them.</p>
 </div>
-<div class="grid md:grid-cols-3 gap-6">
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
 <!-- Cloud AI -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-tertiary text-3xl mb-4 block" data-icon="database">database</span>
-<h3 class="text-headline-md text-white mb-2">Cloud AI</h3>
-<p class="text-on-surface-variant text-body-sm">Gemini is the recommended default, with OpenAI-compatible endpoints and Ollama available as alternatives.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_cloud_ai_title">Cloud AI</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_cloud_ai_desc">Gemini is the recommended default with Structured Outputs, alongside OpenAI-compatible and Ollama endpoints.</p>
 </div>
 <!-- Context Awareness -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-primary text-3xl mb-4 block" data-icon="history">history</span>
-<h3 class="text-headline-md text-white mb-2">Context Awareness</h3>
-<p class="text-on-surface-variant text-body-sm">Caches previous posts and conversation threads to provide coherent, relevant responses every time.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_context_title">Context Awareness</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_context_desc">Caches previous posts and conversation threads to provide coherent, relevant responses every time.</p>
 </div>
 <!-- Link Reading -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-sky-400 text-3xl mb-4 block" data-icon="link">link</span>
-<h3 class="text-headline-md text-white mb-2">Link Reading</h3>
-<p class="text-on-surface-variant text-body-sm">Automatically analyzes articles, PDFs, and web pages shared in the chat to provide instant summaries.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_link_title">Link Reading</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_link_desc">Automatically analyzes articles, PDFs, and web pages shared in the chat to provide instant summaries.</p>
 </div>
-<!-- Instigator Mode -->
+<!-- 'Instigator' Mode -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-orange-400 text-3xl mb-4 block" data-icon="forum">forum</span>
-<h3 class="text-headline-md text-white mb-2">'Instigator' Mode</h3>
-<p class="text-on-surface-variant text-body-sm">Keep the conversation flowing. The bot can auto-comment to stimulate engagement in quiet groups.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_instigator_title">'Instigator' Mode</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_instigator_desc">Keep the conversation flowing. The bot can auto-comment to stimulate engagement in quiet groups.</p>
+</div>
+<!-- Rich Messages -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-pink-400 text-3xl mb-4 block" data-icon="table_chart">table_chart</span>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_rich_title">Rich Messages</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_rich_desc">Supports Telegram Bot API 10.1+ native tables, lists, and LaTeX formulas with automatic fallback.</p>
+</div>
+<!-- Security Hardening -->
+<div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined text-emerald-400 text-3xl mb-4 block" data-icon="security">security</span>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_security_title">Security Hardening</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_security_desc">Protects against DNS rebinding, filters private IP addresses, and secures relay target messaging.</p>
 </div>
 <!-- Owner Co-pilot -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-purple-400 text-3xl mb-4 block" data-icon="person_search">person_search</span>
-<h3 class="text-headline-md text-white mb-2">Owner Co-pilot</h3>
-<p class="text-on-surface-variant text-body-sm">Personalized command set for administrators to manage their digital presence with surgical precision.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_owner_title">Owner Co-pilot</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_owner_desc">Personalized command set for administrators to manage their digital presence with surgical precision.</p>
 </div>
 <!-- Anti-spam & Focus -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-error text-3xl mb-4 block" data-icon="shield">shield</span>
-<h3 class="text-headline-md text-white mb-2">Anti-spam &amp; Focus</h3>
-<p class="text-on-surface-variant text-body-sm">Smart filtering detects noise and spam, keeping your Telegram feed clean and focused on what matters.</p>
+<h3 class="text-headline-md text-white mb-2" data-i18n="features_antispam_title">Anti-spam &amp; Focus</h3>
+<p class="text-on-surface-variant text-body-sm" data-i18n="features_antispam_desc">Smart filtering detects noise and spam, keeping your Telegram feed clean and focused on what matters.</p>
 </div>
 </div>
 </section>
@@ -119,7 +134,7 @@
 <section class="bg-surface-container-low py-24">
 <div class="max-w-7xl mx-auto px-6">
 <div class="text-center mb-16">
-<h2 class="text-headline-lg text-white">The Neural Pipeline</h2>
+<h2 class="text-headline-lg text-white" data-i18n="pipeline_title">The Neural Pipeline</h2>
 </div>
 <div class="relative flex flex-col md:flex-row justify-between items-center gap-8">
 <!-- Connector Line (Desktop) -->
@@ -128,8 +143,8 @@
 <div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
 <span class="material-symbols-outlined text-primary text-3xl" data-icon="send">send</span>
 </div>
-<h4 class="text-white font-bold mb-2">Telegram</h4>
-<p class="text-on-surface-variant text-xs">User sends a message or link</p>
+<h4 class="text-white font-bold mb-2" data-i18n="pipeline_step1_title">Telegram</h4>
+<p class="text-on-surface-variant text-xs" data-i18n="pipeline_step1_desc">User sends a message or link</p>
 </div>
 <div class="md:pt-4">
 <span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
@@ -138,8 +153,8 @@
 <div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
 <span class="material-symbols-outlined text-primary text-3xl" data-icon="robot_2">robot_2</span>
 </div>
-<h4 class="text-white font-bold mb-2">The Bot</h4>
-<p class="text-on-surface-variant text-xs">Applies filters and retrieves context</p>
+<h4 class="text-white font-bold mb-2" data-i18n="pipeline_step2_title">The Bot</h4>
+<p class="text-on-surface-variant text-xs" data-i18n="pipeline_step2_desc">Applies filters and retrieves context</p>
 </div>
 <div class="md:pt-4">
 <span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
@@ -148,8 +163,8 @@
 <div class="w-20 h-20 rounded-full bg-surface-container-high border border-primary/30 flex items-center justify-center mb-4 glow-border">
 <span class="material-symbols-outlined text-primary text-3xl" data-icon="memory">memory</span>
 </div>
-<h4 class="text-white font-bold mb-2">Cloud LLM</h4>
-<p class="text-on-surface-variant text-xs">Gemini or OpenAI generates the response</p>
+<h4 class="text-white font-bold mb-2" data-i18n="pipeline_step3_title">Cloud LLM</h4>
+<p class="text-on-surface-variant text-xs" data-i18n="pipeline_step3_desc">Gemini or OpenAI generates the response</p>
 </div>
 <div class="md:pt-4">
 <span class="material-symbols-outlined text-primary/50 md:rotate-0 rotate-90" data-icon="arrow_forward">arrow_forward</span>
@@ -158,8 +173,8 @@
 <div class="w-20 h-20 rounded-full bg-surface-container-high border border-tertiary flex items-center justify-center mb-4 glow-border">
 <span class="material-symbols-outlined text-tertiary text-3xl" data-icon="check_circle">check_circle</span>
 </div>
-<h4 class="text-white font-bold mb-2">Response</h4>
-<p class="text-on-surface-variant text-xs">Instant, smart feedback in Telegram</p>
+<h4 class="text-white font-bold mb-2" data-i18n="pipeline_step4_title">Response</h4>
+<p class="text-on-surface-variant text-xs" data-i18n="pipeline_step4_desc">Instant, smart feedback in Telegram</p>
 </div>
 </div>
 </div>
@@ -168,32 +183,37 @@
 <section class="max-w-7xl mx-auto px-6 py-24" id="setup">
 <div class="grid md:grid-cols-2 gap-16">
 <div>
-<h2 class="text-headline-lg text-white mb-6">Quick Installation</h2>
-<p class="text-on-surface-variant mb-8">Get your assistant up and running in minutes. Requires Node.js and an API key for your selected cloud provider.</p>
+<h2 class="text-headline-lg text-white mb-6" data-i18n="setup_title">Quick Installation</h2>
+<p class="text-on-surface-variant mb-8" data-i18n="setup_desc">Get your assistant up and running in minutes. Requires Node.js and an API key for your selected cloud provider.</p>
 <div class="space-y-6">
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
-<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 1: Install Dependencies</span>
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest" data-i18n="setup_step1">Step 1: Install Dependencies</span>
 <span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
 </div>
 <pre class="font-code-snippet text-primary overflow-x-auto"><code>npm install</code></pre>
 </div>
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
-<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 2: Configure Provider</span>
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest" data-i18n="setup_step2">Step 2: Configure Provider</span>
 <span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
 </div>
 <pre class="font-code-snippet text-primary overflow-x-auto"><code>cp .env.example .env</code></pre>
 </div>
 <div class="glass-panel p-6 rounded-xl border-l-4 border-primary">
 <div class="flex justify-between items-center mb-4">
-<span class="text-label-md text-white opacity-50 uppercase tracking-widest">Step 3: Configuration</span>
+<span class="text-label-md text-white opacity-50 uppercase tracking-widest" data-i18n="setup_step3">Step 3: Configuration</span>
 <span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer" data-icon="content_copy">content_copy</span>
 </div>
 <pre class="font-code-snippet text-primary overflow-x-auto"><code># .env
 TELEGRAM_BOT_TOKEN=your_token
+BOT_USERNAME=your_bot_username
+ALLOWED_CHAT_IDS=-1001234567890
+OWNER_USER_IDS=123456789
+
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_key</code></pre>
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-2.5-flash</code></pre>
 </div>
 </div>
 </div>
@@ -207,8 +227,8 @@ GEMINI_API_KEY=your_key</code></pre>
 <div class="max-w-7xl mx-auto px-6">
 <div class="flex flex-col md:flex-row gap-12">
 <div class="md:w-1/3">
-<h2 class="text-headline-lg text-white mb-4">Command Center</h2>
-<p class="text-on-surface-variant">Control every aspect of your assistant with simple, powerful Telegram commands.</p>
+<h2 class="text-headline-lg text-white mb-4" data-i18n="commands_title">Command Center</h2>
+<p class="text-on-surface-variant" data-i18n="commands_desc">Control every aspect of your assistant with simple, powerful Telegram commands.</p>
 <div class="mt-8 flex gap-2">
 <div class="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
 <span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
@@ -220,24 +240,28 @@ GEMINI_API_KEY=your_key</code></pre>
 </div>
 <div class="md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
+<code class="text-primary font-bold">/post</code>
+<span class="text-tertiary text-sm" data-i18n="commands_post_desc">Publish markdown post to channel</span>
+</div>
+<div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
 <code class="text-primary font-bold">/chatid</code>
-<span class="text-on-surface-variant text-sm">Get current chat context</span>
+<span class="text-on-surface-variant text-sm" data-i18n="commands_chatid_desc">Get current chat context</span>
 </div>
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
 <code class="text-primary font-bold">/status</code>
-<span class="text-on-surface-variant text-sm">Check bot health &amp; LLM</span>
+<span class="text-on-surface-variant text-sm" data-i18n="commands_status_desc">Check bot health &amp; LLM</span>
 </div>
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
 <code class="text-primary font-bold">/on</code>
-<span class="text-tertiary text-sm">Enable AI automation</span>
+<span class="text-tertiary text-sm" data-i18n="commands_on_desc">Enable AI automation</span>
 </div>
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
 <code class="text-primary font-bold">/off</code>
-<span class="text-error text-sm">Pause assistant features</span>
+<span class="text-error text-sm" data-i18n="commands_off_desc">Pause assistant features</span>
 </div>
 <div class="bg-surface-container-high p-4 rounded-xl flex items-center justify-between">
 <code class="text-primary font-bold">/usage</code>
-<span class="text-tertiary text-sm">Show detailed token usage statistics</span>
+<span class="text-tertiary text-sm" data-i18n="commands_usage_desc">Show detailed token usage statistics</span>
 </div>
 </div>
 </div>
@@ -245,33 +269,60 @@ GEMINI_API_KEY=your_key</code></pre>
 </section>
 <!-- FAQ -->
 <section class="max-w-4xl mx-auto px-6 py-24">
-<h2 class="text-headline-lg text-white mb-12 text-center">Technical FAQ</h2>
+<h2 class="text-headline-lg text-white mb-12 text-center" data-i18n="faq_title">Technical FAQ</h2>
 <div class="space-y-4">
 <details class="glass-panel rounded-xl group overflow-hidden">
 <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
-<span class="text-white font-bold">What are the minimum hardware requirements?</span>
+<span class="text-white font-bold" data-i18n="faq_q1">What are the minimum hardware requirements?</span>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
-<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a1">
                         The recommended cloud setup only needs Node.js 22+ and a network connection. Local Ollama mode is optional and depends on the model size and your CPU/GPU.
                     </div>
 </details>
 <details class="glass-panel rounded-xl group overflow-hidden">
 <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
-<span class="text-white font-bold">Can I switch between Gemini, OpenAI, and Ollama?</span>
+<span class="text-white font-bold" data-i18n="faq_q2">Can I switch between Gemini, OpenAI, and Ollama?</span>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
-<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a2">
                         Yes. Set `LLM_PROVIDER` to `gemini`, `openai`, or `ollama`, then fill the matching API key or local Ollama settings in `.env`.
                     </div>
 </details>
 <details class="glass-panel rounded-xl group overflow-hidden">
 <summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
-<span class="text-white font-bold">How does it handle long articles?</span>
+<span class="text-white font-bold" data-i18n="faq_q3">How does it handle long articles?</span>
 <span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
 </summary>
-<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5">
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a3">
                         The bot fetches link content, extracts the main text, and provides a concise summary that fits within Telegram's message limits while preserving important context.
+                    </div>
+</details>
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold" data-i18n="faq_q4">Is the bot secure against malicious links and DNS rebinding?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a4">
+                        Yes. The built-in URL fetcher enforces strict security validations: it filters private IP ranges (blocking SSRF), restricts redirection hops, and prevents DNS rebinding to protect internal networks.
+                    </div>
+</details>
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold" data-i18n="faq_q5">What are "Rich Messages" and how does the bot support them?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a5">
+                        The bot supports Telegram Bot API 10.1+ Rich Messages, converting standard Markdown output (including lists, tables, and LaTeX formulas) into HTML. It also implements an automatic safety fallback to standard messages if client or server rendering fails.
+                    </div>
+</details>
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-white/5 list-none">
+<span class="text-white font-bold" data-i18n="faq_q6">How do I publish posts directly to my channel using the bot?</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5" data-i18n="faq_a6">
+                        As an owner, send `/post <Markdown text>` to the bot in a direct message. You can optionally attach an image, which the bot will automatically host and format into a native Telegram Rich Message. The bot will respond with a direct link to the post.
                     </div>
 </details>
 </div>
@@ -285,20 +336,20 @@ GEMINI_API_KEY=your_key</code></pre>
 <span class="material-symbols-outlined text-primary" data-icon="smart_toy">smart_toy</span>
                     Dump-Assistant-Bot
                 </div>
-<p class="font-['Space_Grotesk'] text-xs text-slate-500">
+<p class="font-['Space_Grotesk'] text-xs text-slate-500" data-i18n="footer_copyright">
                     © 2026 Dump-Assistant-Bot. Built for the future of automation.
                 </p>
 </div>
 <div class="flex gap-8">
-<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank">GitHub</a>
-<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot/issues" target="_blank">Support</a>
-<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank">Documentation</a>
-<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="#">Terms</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" data-i18n="footer_github">GitHub</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot/issues" target="_blank" data-i18n="footer_support">Support</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot#readme" target="_blank" data-i18n="footer_docs">Documentation</a>
+<a class="text-slate-500 hover:text-sky-400 transition-colors font-['Space_Grotesk'] text-xs uppercase tracking-widest" href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" data-i18n="footer_terms">Terms</a>
 </div>
 <div class="flex gap-4">
-<div class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center opacity-80 hover:opacity-100 hover:border-primary transition-all cursor-pointer">
+<a href="https://t.me" target="_blank" class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center opacity-80 hover:opacity-100 hover:border-primary transition-all cursor-pointer inline-flex">
 <span class="material-symbols-outlined text-white text-lg" data-icon="send">send</span>
-</div>
+</a>
 <a href="https://github.com/ALEVOLDON/Dump-Assistant-Bot" target="_blank" class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center opacity-80 hover:opacity-100 hover:border-primary transition-all cursor-pointer inline-flex">
 <span class="material-symbols-outlined text-white text-lg" data-icon="code">code</span>
 </a>
