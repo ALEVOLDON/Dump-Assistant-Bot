@@ -66,12 +66,31 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
   } catch (error) {
     console.warn(`[RichMessage] Failed to send sendRichMessage (${error.message}). Falling back to standard ctx.reply.`);
     
-    // Стандартный фолбэк на ctx.reply (без парсинга таблиц, но текст дойдет гарантированно)
-    await ctx.reply(text, {
-      reply_parameters: {
-        message_id: replyToMessageId
+    const isReplyError = error.message && (
+      error.message.includes("message to be replied not found") ||
+      error.message.includes("reply")
+    );
+
+    try {
+      if (isReplyError) {
+        // Если целевое сообщение не найдено (удалено), отправляем просто в чат без reply
+        await ctx.reply(text);
+      } else {
+        await ctx.reply(text, {
+          reply_parameters: {
+            message_id: replyToMessageId
+          }
+        });
       }
-    });
+    } catch (fallbackError) {
+      console.warn(`[RichMessage] Fallback failed (${fallbackError.message}). Trying to send message without reply.`);
+      try {
+        await ctx.reply(text);
+      } catch (finalError) {
+        console.error(`[RichMessage] Final send failed: ${finalError.message}`);
+        throw finalError;
+      }
+    }
   }
 }
 
