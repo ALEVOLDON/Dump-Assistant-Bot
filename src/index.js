@@ -850,16 +850,72 @@ bot.on("message", async (ctx, next) => {
               }
             }
             
-            // Конвертируем Markdown в HTML
-            const htmlContent = markdownToHtml(finalMarkdown);
-            
-            // Отправляем как Rich Message (только HTML, чтобы Telegram 10.1+ не перетирал форматирование через raw markdown)
-            const result = await bot.api.raw.sendRichMessage({
-              chat_id: channelChatId,
-              rich_message: {
-                html: htmlContent
+            // Проверяем, нужны ли Rich Messages (наличие таблиц или LaTeX)
+            const hasTable = finalMarkdown.includes("|") && finalMarkdown.includes("---");
+            const hasLatex = finalMarkdown.includes("$$") || finalMarkdown.includes("\\(") || finalMarkdown.includes("\\[");
+            const needsRich = hasTable || hasLatex;
+
+            let result;
+            if (needsRich) {
+              logger.info(`[Publishing] Post contains tables/math. Publishing as Rich Message.`);
+              const htmlContent = markdownToHtml(finalMarkdown, true);
+              result = await bot.api.raw.sendRichMessage({
+                chat_id: channelChatId,
+                rich_message: {
+                  html: htmlContent
+                }
+              });
+            } else {
+              logger.info(`[Publishing] Post is plain text/lists. Publishing as Standard Message for story compatibility.`);
+              const htmlContent = markdownToHtml(finalMarkdown, false);
+              
+              if (mediaFileId && !mediaSentSeparately) {
+                if (htmlContent.length <= 1024) {
+                  // Отправляем как нативное медиа с описанием
+                  const sendParams = {
+                    chat_id: channelChatId,
+                    caption: htmlContent,
+                    parse_mode: "HTML"
+                  };
+                  if (mediaType === "photo") {
+                    result = await bot.api.sendPhoto(channelChatId, mediaFileId, sendParams);
+                  } else if (mediaType === "video") {
+                    result = await bot.api.sendVideo(channelChatId, mediaFileId, sendParams);
+                  } else if (mediaType === "animation") {
+                    result = await bot.api.sendAnimation(channelChatId, mediaFileId, sendParams);
+                  } else if (mediaType === "document") {
+                    result = await bot.api.sendDocument(channelChatId, mediaFileId, sendParams);
+                  }
+                } else {
+                  // Текст слишком длинный (>1024) -> используем скрытую ссылку на загруженное медиа
+                  let textWithMedia = htmlContent;
+                  if (htmlTag && htmlTag.includes("src=")) {
+                    const srcMatch = htmlTag.match(/src="([^"]+)"/);
+                    if (srcMatch && srcMatch[1]) {
+                      const directUrl = srcMatch[1];
+                      textWithMedia = `<a href="${directUrl}">&#160;</a>${htmlContent}`;
+                    }
+                  }
+                  
+                  result = await bot.api.sendMessage(channelChatId, textWithMedia, {
+                    parse_mode: "HTML",
+                    link_preview_options: {
+                      is_disabled: false,
+                      prefer_large_media: true,
+                      show_above_text: true
+                    }
+                  });
+                }
+              } else {
+                // Нет медиа -> просто текстовое сообщение
+                result = await bot.api.sendMessage(channelChatId, htmlContent, {
+                  parse_mode: "HTML",
+                  link_preview_options: {
+                    is_disabled: true
+                  }
+                });
               }
-            });
+            }
             
             const postLink = result.chat.username 
               ? `https://t.me/${result.chat.username}/${result.message_id}`

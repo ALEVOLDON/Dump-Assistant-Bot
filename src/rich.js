@@ -1,16 +1,61 @@
 const { marked } = require("marked");
 const config = require("./config");
 
+let currentIsRich = true;
+
 // Custom renderer for marked to format text appropriately for Telegram Rich Message
 const renderer = {
   paragraph(arg) {
     const inlineHtml = this.parser.parseInline(arg.tokens);
-    return `<p>${inlineHtml}</p>\n\n`;
+    if (currentIsRich) {
+      return `<p>${inlineHtml}</p>\n\n`;
+    } else {
+      return inlineHtml + '\n\n';
+    }
   },
   heading(arg) {
     const inlineHtml = this.parser.parseInline(arg.tokens);
-    const level = arg.depth || 3;
-    return `<h${level}>${inlineHtml}</h${level}>\n\n`;
+    if (currentIsRich) {
+      const level = arg.depth || 3;
+      return `<h${level}>${inlineHtml}</h${level}>\n\n`;
+    } else {
+      return `<b>${inlineHtml}</b>\n\n`;
+    }
+  },
+  list(arg) {
+    if (currentIsRich) {
+      return marked.Renderer.prototype.list.call(this, arg);
+    }
+    let markdown = "";
+    arg.items.forEach((item, index) => {
+      const itemText = this.parser.parse(item.tokens).trim();
+      const prefix = arg.ordered ? `${index + 1}. ` : "• ";
+      markdown += prefix + itemText + "\n";
+    });
+    return markdown + "\n";
+  },
+  listitem(arg) {
+    if (currentIsRich) {
+      return marked.Renderer.prototype.listitem.call(this, arg);
+    }
+    return arg.text;
+  },
+  table(arg) {
+    if (currentIsRich) {
+      return marked.Renderer.prototype.table.call(this, arg);
+    }
+    let text = "";
+    arg.header.forEach(cell => {
+      text += `<b>${this.parser.parseInline(cell.tokens)}</b> | `;
+    });
+    text += "\n";
+    arg.rows.forEach(row => {
+      row.forEach(cell => {
+        text += `${this.parser.parseInline(cell.tokens)} | `;
+      });
+      text += "\n";
+    });
+    return text + "\n";
   }
 };
 
@@ -23,14 +68,16 @@ marked.use({
 });
 
 /**
- * Конвертирует входящий Markdown в HTML для Telegram Rich Messages,
+ * Конвертирует входящий Markdown в HTML для Telegram Rich/Standard Messages,
  * учитывая особенности рендеринга нативных списков, таблиц и переносов строк.
  * 
  * @param {string} text - текст Markdown
+ * @param {boolean} isRich - использовать ли Rich-теги (таблицы, параграфы) или стандартные теги (для историй)
  * @returns {string} - готовый HTML для отправки
  */
-function markdownToHtml(text) {
+function markdownToHtml(text, isRich = true) {
   if (!text) return "";
+  currentIsRich = isRich;
   let html = marked.parse(text).trim();
   // Заменяем теги <br> / <br /> на переносы строк \n, так как Telegram
   // не поддерживает теги <br> и игнорирует/вырезает их, в то время как \n
