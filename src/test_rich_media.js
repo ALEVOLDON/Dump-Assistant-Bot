@@ -71,8 +71,7 @@ async function test() {
     const result = await bot.api.raw.sendRichMessage({
       chat_id: channelChatId,
       rich_message: {
-        html: htmlContent,
-        markdown: markdown
+        html: htmlContent
       }
     });
     console.log("Success! Message sent:", JSON.stringify(result, null, 2));

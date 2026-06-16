@@ -707,23 +707,54 @@ bot.on("message", async (ctx, next) => {
             logger.info(`[Publishing] Publishing post to channel: ${channelChatId}`);
             
             let finalMarkdown = postText;
-            let photoSentSeparately = false;
-            
-            // Если прикреплено фото
+            let mediaSentSeparately = false;
+            let mediaTypeSent = "";
+
+            let mediaFileId = null;
+            let mediaType = ""; // "photo", "video", "animation", "document"
+            let fileName = "";
+            let mimeType = "";
+            let htmlTag = "";
+
             if (msg.photo?.length) {
               const photo = msg.photo.at(-1);
-              logger.info(`[Publishing] Photo detected. Attempting to upload to tmpfiles.org for unified Rich Message...`);
+              mediaFileId = photo.file_id;
+              mediaType = "photo";
+              fileName = "photo.jpg";
+              mimeType = "image/jpeg";
+            } else if (msg.video) {
+              mediaFileId = msg.video.file_id;
+              mediaType = "video";
+              fileName = msg.video.file_name || "video.mp4";
+              mimeType = msg.video.mime_type || "video/mp4";
+            } else if (msg.animation) {
+              mediaFileId = msg.animation.file_id;
+              mediaType = "animation";
+              fileName = msg.animation.file_name || "animation.gif";
+              mimeType = msg.animation.mime_type || "image/gif";
+            } else if (msg.document) {
+              mediaFileId = msg.document.file_id;
+              mediaType = "document";
+              fileName = msg.document.file_name || "document.dat";
+              mimeType = msg.document.mime_type || "application/octet-stream";
+            }
+
+            if (mediaFileId) {
+              logger.info(`[Publishing] ${mediaType} detected. Attempting to upload to tmpfiles.org for unified Rich Message...`);
               
               try {
                 // Скачиваем файл из Telegram
-                const file = await bot.api.getFile(photo.file_id);
+                const file = await bot.api.getFile(mediaFileId);
                 const downloadUrl = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
                 const downloadResponse = await fetch(downloadUrl);
+                if (!downloadResponse.ok) {
+                  throw new Error(`Failed to download file from Telegram: ${downloadResponse.statusText}`);
+                }
                 const arrayBuffer = await downloadResponse.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
                 
                 // Формируем FormData для отправки на tmpfiles.org
-                const fileObj = new File([buffer], "photo.jpg", { type: "image/jpeg" });
+                const fileObj = new File([buffer], fileName, { type: mimeType });
                 const formData = new FormData();
                 formData.append("file", fileObj);
                 
@@ -733,7 +764,7 @@ bot.on("message", async (ctx, next) => {
                 });
                 
                 if (!uploadResponse.ok) {
-                  throw new Error(`Upload returned status ${uploadResponse.status}`);
+                  throw new Error(`Upload to tmpfiles.org returned status ${uploadResponse.status}`);
                 }
                 
                 const uploadResult = await uploadResponse.json();
@@ -743,27 +774,46 @@ bot.on("message", async (ctx, next) => {
                 }
                 
                 const directUrl = originalUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
-                logger.info(`[Publishing] Photo successfully hosted at: ${directUrl}`);
+                logger.info(`[Publishing] ${mediaType} successfully hosted at: ${directUrl}`);
                 
-                // Вставляем картинку в самое начало Markdown-поста
-                finalMarkdown = `<img src="${directUrl}" />\n\n${postText}`;
+                // Вставляем медиа-тег в самое начало Markdown-поста
+                if (mediaType === "photo") {
+                  htmlTag = `<img src="${directUrl}" />`;
+                } else if (mediaType === "video" || mediaType === "animation") {
+                  htmlTag = `<video src="${directUrl}" />`;
+                } else {
+                  // Для обычных документов используем ссылку на скачивание
+                  htmlTag = `<a href="${directUrl}">📎 ${fileName}</a>`;
+                }
+                
+                finalMarkdown = `${htmlTag}\n\n${postText}`;
               } catch (uploadErr) {
-                logger.warn(`[Publishing] Temporary hosting failed (${uploadErr.message}). Falling back to sending photo separately.`);
-                // Если не получилось загрузить, отправляем фото отдельно (fallback)
-                await bot.api.sendPhoto(channelChatId, photo.file_id);
-                photoSentSeparately = true;
+                logger.warn(`[Publishing] Temporary hosting failed for ${mediaType} (${uploadErr.message}). Falling back to sending separately.`);
+                
+                // Отправляем медиа отдельно в зависимости от его типа
+                if (mediaType === "photo") {
+                  await bot.api.sendPhoto(channelChatId, mediaFileId);
+                } else if (mediaType === "video") {
+                  await bot.api.sendVideo(channelChatId, mediaFileId);
+                } else if (mediaType === "animation") {
+                  await bot.api.sendAnimation(channelChatId, mediaFileId);
+                } else if (mediaType === "document") {
+                  await bot.api.sendDocument(channelChatId, mediaFileId);
+                }
+                
+                mediaSentSeparately = true;
+                mediaTypeSent = mediaType;
               }
             }
             
             // Конвертируем Markdown в HTML
             const htmlContent = markdownToHtml(finalMarkdown);
             
-            // Отправляем как Rich Message
+            // Отправляем как Rich Message (только HTML, чтобы Telegram 10.1+ не перетирал форматирование через raw markdown)
             const result = await bot.api.raw.sendRichMessage({
               chat_id: channelChatId,
               rich_message: {
-                html: htmlContent,
-                markdown: finalMarkdown
+                html: htmlContent
               }
             });
             
@@ -772,8 +822,9 @@ bot.on("message", async (ctx, next) => {
               : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
             
             let successMsg = `✅ Пост успешно опубликован в канале!\nСсылка: ${postLink}`;
-            if (photoSentSeparately) {
-              successMsg += "\n\n⚠️ Обратите внимание: из-за ошибки временного хостинга картинок фото было отправлено отдельным сообщением перед текстом.";
+            if (mediaSentSeparately) {
+              const mediaNameRu = mediaTypeSent === "photo" ? "картинка" : mediaTypeSent === "video" ? "видео" : mediaTypeSent === "animation" ? "анимация" : "документ";
+              successMsg += `\n\n⚠️ Обратите внимание: из-за ошибки временного хостинга медиа-файлов ${mediaNameRu} было отправлено отдельным сообщением перед текстом.`;
             }
             
             await ctx.reply(successMsg);
