@@ -711,7 +711,6 @@ bot.on("message", async (ctx, next) => {
             const channelChatId = config.channelChatId;
             logger.info(`[Publishing] Publishing post to channel: ${channelChatId}`);
 
-            let formattingError = null;
             // Если это обычный /post (не raw), форматируем его с помощью LLM для фирменного стиля
             if (!isPostRaw) {
               logger.info(`[Publishing] Reformatting raw draft with LLM to fit channel's style...`);
@@ -744,8 +743,9 @@ bot.on("message", async (ctx, next) => {
                   throw new Error(`Модель не вернула текст (reason: ${formatResponse.result.reason || "unknown"})`);
                 }
               } catch (llmErr) {
-                logger.warn(`[Publishing] LLM reformatting failed (${llmErr.message}). Falling back to original draft.`);
-                formattingError = llmErr.message;
+                logger.error(`[Publishing] LLM reformatting failed: ${llmErr.message}`);
+                await ctx.reply(`❌ Ошибка автоформатирования поста с помощью ИИ:\n${llmErr.message}\n\nПубликация отменена. Пожалуйста, попробуйте еще раз или используйте команду /postraw для публикации без ИИ-оформления.`);
+                return; // Прерываем публикацию
               }
             }
             
@@ -865,9 +865,6 @@ bot.on("message", async (ctx, next) => {
               : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
             
             let successMsg = `✅ Пост успешно опубликован в канале!\nСсылка: ${postLink}`;
-            if (formattingError) {
-              successMsg += `\n\n⚠️ Обратите внимание: ИИ-форматирование завершилось с ошибкой (${formattingError}). Пост опубликован в исходном сыром виде.`;
-            }
             if (mediaSentSeparately) {
               const mediaNameRu = mediaTypeSent === "photo" ? "картинка" : mediaTypeSent === "video" ? "видео" : mediaTypeSent === "animation" ? "анимация" : "документ";
               successMsg += `\n\n⚠️ Обратите внимание: из-за ошибки временного хостинга медиа-файлов ${mediaNameRu} было отправлено отдельным сообщением перед текстом.`;
