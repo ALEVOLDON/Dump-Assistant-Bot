@@ -29,28 +29,39 @@ async function createGeminiDecision(config, payload) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${systemContent}\n\n${payload.userPrompt}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              should_reply: { type: "BOOLEAN" },
-              reply_text: { type: "STRING" },
-              reason: { type: "STRING" },
-              risk: { type: "STRING", enum: ["low", "medium", "high"] }
-            },
-            required: ["should_reply", "reply_text"]
+        body: JSON.stringify((() => {
+          const genConfig = {
+            temperature: 0.4,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                should_reply: { type: "BOOLEAN" },
+                reply_text: { type: "STRING" },
+                reason: { type: "STRING" },
+                risk: { type: "STRING", enum: ["low", "medium", "high"] }
+              },
+              required: ["should_reply", "reply_text"]
+            }
+          };
+
+          // Turn off thinking for Gemini 2.5+ models to prevent MaxTokens truncation of JSON responses
+          if (config.geminiModel.includes("2.5") || config.geminiModel.includes("3.")) {
+            genConfig.thinkingConfig = {
+              thinkingBudget: 0
+            };
           }
-        }
-      }),
+
+          return {
+            contents: [{
+              parts: [{
+                text: `${systemContent}\n\n${payload.userPrompt}`
+              }]
+            }],
+            generationConfig: genConfig
+          };
+        })()),
       signal: controller.signal
     });
   } catch (error) {
