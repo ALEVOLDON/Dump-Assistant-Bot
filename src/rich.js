@@ -5,11 +5,12 @@ const config = require("./config");
 const renderer = {
   paragraph(arg) {
     const inlineHtml = this.parser.parseInline(arg.tokens);
-    return inlineHtml + '\n\n';
+    return `<p>${inlineHtml}</p>`;
   },
   heading(arg) {
     const inlineHtml = this.parser.parseInline(arg.tokens);
-    return `<b>${inlineHtml}</b>\n\n`;
+    const level = arg.depth || 3;
+    return `<h${level}>${inlineHtml}</h${level}>`;
   }
 };
 
@@ -30,11 +31,7 @@ marked.use({
  */
 function markdownToHtml(text) {
   if (!text) return "";
-  let html = marked.parse(text).trim();
-  // Заменяем теги <br> / <br /> на переносы строк \n, так как Telegram
-  // не поддерживает теги <br> и игнорирует/вырезает их, в то время как \n
-  // полноценно поддерживается для перевода строки.
-  return html.replace(/<br\s*\/?>/gi, '\n');
+  return marked.parse(text).trim();
 }
 
 /**
