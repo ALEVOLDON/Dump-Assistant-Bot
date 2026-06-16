@@ -867,7 +867,14 @@ bot.on("message", async (ctx, next) => {
               });
             } else {
               logger.info(`[Publishing] Post is plain text/lists. Publishing as Standard Message for story compatibility.`);
-              const htmlContent = markdownToHtml(finalMarkdown, false);
+              let htmlContent = markdownToHtml(finalMarkdown, false);
+              
+              // В стандартном режиме Telegram не поддерживает теги <img> и <video>.
+              // Удаляем их из HTML-содержимого, так как само медиа отправляется отдельно или через скрытую ссылку.
+              htmlContent = htmlContent
+                .replace(/<img[^>]*>/gi, "")
+                .replace(/<video[^>]*>/gi, "")
+                .trim();
               
               if (mediaFileId && !mediaSentSeparately) {
                 if (htmlContent.length <= 1024) {
