@@ -695,16 +695,55 @@ bot.on("message", async (ctx, next) => {
         const caption = msg.caption || "";
         const rawText = (msg.text || caption).trim();
         
-        if (rawText.startsWith("/post")) {
-          const postText = rawText.slice(5).trim();
+        const isPostRaw = rawText.startsWith("/postraw") || rawText.startsWith("/post_raw");
+        const isPost = rawText.startsWith("/post");
+
+        if (isPost) {
+          const commandLength = isPostRaw ? (rawText.startsWith("/postraw") ? 8 : 9) : 5;
+          let postText = rawText.slice(commandLength).trim();
+
           if (!postText) {
-            await ctx.reply("❌ Текст поста пуст! Напишите ваш Markdown-текст после команды /post.");
+            await ctx.reply("❌ Текст поста пуст! Напишите ваш текст после команды.");
             return;
           }
           
           try {
             const channelChatId = config.channelChatId;
             logger.info(`[Publishing] Publishing post to channel: ${channelChatId}`);
+
+            // Если это обычный /post (не raw), форматируем его с помощью LLM для фирменного стиля
+            if (!isPostRaw) {
+              logger.info(`[Publishing] Reformatting raw draft with LLM to fit channel's style...`);
+              
+              const formatSystemPrompt = `Ты — профессиональный редактор Telegram-канала. Твоя задача — взять сырой черновик поста от автора и превратить его в красивый, профессионально оформленный пост в фирменном стиле канала.
+
+Фирменный стиль канала:
+- Начинай с главного заголовка первого уровня (например, "# 🚀 Название").
+- Разделяй разделы пустыми строками для читаемости.
+- Если в тексте перечисляются характеристики, параметры или структура в виде строк (например, "Компонент Характеристики CPU 72-ядерный NVIDIA Grace GPU Blackwell Ultra..."), обязательно объединяй их в красивую нативную Markdown-таблицу (со столбцами, выравниванием, разделителями).
+- Если в тексте есть списки (например, преимущества, причины, задачи), оформи их в виде аккуратного маркированного списка (используй "*" или "-" для пунктов).
+- Поддерживай живой, профессиональный тон автора.
+- В самом конце обязательно добавь хэштеги через пробел (например, "#AI #NVIDIA #Blackwell"). Никакие хэштеги в конце не должны становиться заголовками первого уровня (не ставь их сразу после перевода строки без пустого места, или просто разделяй пробелами).
+- Сохраняй весь смысл, ссылки и детали исходного текста, но сделай оформление безупречным.
+- Обязательно возвращай итоговый текст в поле reply_text.`;
+
+              const formatUserPrompt = `=== СЫРОЙ ЧЕРНОВИК ПОСТА ===\n${postText}\n=== КОНЕЦ ЧЕРНОВИКА ===`;
+
+              try {
+                const formatResponse = await createAssistantDecision(config, {
+                  systemPrompt: formatSystemPrompt,
+                  userPrompt: formatUserPrompt,
+                  forceReply: true
+                });
+
+                if (formatResponse.result.reply_text) {
+                  postText = formatResponse.result.reply_text.trim();
+                  logger.info(`[Publishing] Post successfully reformatted by LLM.`);
+                }
+              } catch (llmErr) {
+                logger.warn(`[Publishing] LLM reformatting failed (${llmErr.message}). Falling back to original draft.`);
+              }
+            }
             
             let finalMarkdown = postText;
             let mediaSentSeparately = false;
