@@ -14,10 +14,12 @@ async function createGeminiDecision(config, payload) {
     "Формат ответа — ТОЛЬКО валидный JSON:",
     '{"should_reply": boolean, "reply_text": "...", "reason": "...", "risk": "low|medium|high"}',
     "",
-    payload.forceReply
-      ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
-      : 'Если отвечать не нужно — should_reply: false, reply_text: "".'
-  ].join("\n");
+    payload.noSuffix
+      ? ""
+      : (payload.forceReply
+          ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
+          : 'Если отвечать не нужно — should_reply: false, reply_text: "".')
+  ].filter(val => val !== undefined && val !== "").join("\n");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.llmTimeoutMs);
@@ -108,10 +110,12 @@ async function createOpenAiDecision(config, payload) {
     "Формат ответа — ТОЛЬКО валидный JSON:",
     '{"should_reply": boolean, "reply_text": "...", "reason": "...", "risk": "low|medium|high"}',
     "",
-    payload.forceReply
-      ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
-      : 'Если отвечать не нужно — should_reply: false, reply_text: "".'
-  ].join("\n");
+    payload.noSuffix
+      ? ""
+      : (payload.forceReply
+          ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
+          : 'Если отвечать не нужно — should_reply: false, reply_text: "".')
+  ].filter(val => val !== undefined && val !== "").join("\n");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.llmTimeoutMs);
