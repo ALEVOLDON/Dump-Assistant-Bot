@@ -57,7 +57,7 @@ module.exports = {
   allowedChatIds: parseIdList(process.env.ALLOWED_CHAT_IDS),
   allowAllChats: readBoolean("ALLOW_ALL_CHATS", false),
   ownerUserIds: parseIdList(process.env.OWNER_USER_IDS),
-  channelChatId: process.env.CHANNEL_CHAT_ID || "-1001329670526",
+  channelChatId: process.env.CHANNEL_CHAT_ID || "",
   channelAbout: process.env.CHANNEL_ABOUT || "",
   autoReplyEnabled: readBoolean("AUTO_REPLY_ENABLED", true),
   maxReplyChars: readNumber("MAX_REPLY_CHARS", 260),
@@ -112,6 +112,12 @@ function validateConfig() {
     errors.push("OLLAMA_BASE_URL обязателен при LLM_PROVIDER=ollama");
   }
   
+  if (!config.channelChatId) {
+    console.warn("⚠️  CHANNEL_CHAT_ID не задан — команда /post не сможет публиковать в канал.");
+  } else if (!String(config.channelChatId).startsWith("-100")) {
+    errors.push("CHANNEL_CHAT_ID должен быть ID канала (начинается с -100)");
+  }
+
   if (errors.length > 0) {
     console.error("❌ Ошибки конфигурации:");
     errors.forEach(error => console.error(`  - ${error}`));

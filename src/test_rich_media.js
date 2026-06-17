@@ -5,7 +5,10 @@ const { markdownToHtml } = require("./rich");
 const bot = new Bot(config.telegramBotToken);
 
 async function test() {
-  const channelChatId = "-1001329670526";
+  const channelChatId = config.channelChatId;
+  if (!channelChatId) {
+    throw new Error("CHANNEL_CHAT_ID не задан в .env");
+  }
   console.log("1. Sending photo to get fileId...");
   
   try {
