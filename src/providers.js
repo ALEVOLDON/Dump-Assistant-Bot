@@ -1,11 +1,12 @@
+const { parseDecisionJson } = require("./parseDecision");
+
 async function createGeminiDecision(config, payload) {
   const url = `${config.geminiBaseUrl}/models/${config.geminiModel}:generateContent`;
 
   // Отладка - проверяем ключ
   if (!config.geminiApiKey) {
-    throw new Error('Gemini API key is missing! Check GEMINI_API_KEY in .env');
+    throw new Error("Gemini API key is missing! Check GEMINI_API_KEY in .env");
   }
-  console.log('[Gemini] Using model:', config.geminiModel);
 
   const systemContent = [
     payload.systemPrompt.trim(),
@@ -82,12 +83,9 @@ async function createGeminiDecision(config, payload) {
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   const usage = data.usageMetadata || {};
 
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
+  const parsed = parseDecisionJson(content);
+  if (parsed.reason === "invalid_json") {
     console.error("[Gemini] Bad JSON:", content.slice(0, 200));
-    parsed = { should_reply: false, reason: "invalid_json", reply_text: "", risk: "low" };
   }
 
   return {
@@ -155,12 +153,9 @@ async function createOpenAiDecision(config, payload) {
   const content = data.choices?.[0]?.message?.content || "{}";
   const usage = data.usage || {};
 
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
+  const parsed = parseDecisionJson(content);
+  if (parsed.reason === "invalid_json") {
     console.error("[OpenAI] Bad JSON:", content.slice(0, 200));
-    parsed = { should_reply: false, reason: "invalid_json", reply_text: "", risk: "low" };
   }
 
   return {

@@ -14,13 +14,16 @@ async function createAssistantDecision(config, payload) {
     throw new Error(`Unsupported LLM_PROVIDER: ${config.llmProvider}`);
   }
 
-  // Страховка: если forceReply=true, но модель всё равно сказала "нет" — принудительно включаем
-  if (payload.forceReply && !response.result.should_reply) {
-    console.warn(`[LLM] forceReply=true but model said no (${response.result.reason}). Overriding.`);
-    response.result.should_reply = true;
-  }
-
+  response.result = applyForceReply(response.result, payload.forceReply);
   return response;
 }
 
-module.exports = { createAssistantDecision };
+function applyForceReply(result, forceReply) {
+  if (forceReply && !result.should_reply) {
+    console.warn(`[LLM] forceReply=true but model said no (${result.reason}). Overriding.`);
+    return { ...result, should_reply: true };
+  }
+  return result;
+}
+
+module.exports = { createAssistantDecision, applyForceReply };

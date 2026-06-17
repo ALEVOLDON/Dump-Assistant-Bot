@@ -297,4 +297,9 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
   }
 }
 
-module.exports = { extractUrls, fetchUrlContent };
+module.exports = {
+  extractUrls,
+  fetchUrlContent,
+  isSafeUrl,
+  stripHtml
+};

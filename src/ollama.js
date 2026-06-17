@@ -1,3 +1,5 @@
+const { parseDecisionJson } = require("./parseDecision");
+
 async function createOllamaDecision(config, payload) {
   const url = `${config.ollamaBaseUrl}/api/chat`;
 
@@ -55,12 +57,9 @@ async function createOllamaDecision(config, payload) {
   const data = await response.json();
   const content = data.message?.content || "{}";
 
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
+  const parsed = parseDecisionJson(content);
+  if (parsed.reason === "invalid_json") {
     console.error("[Ollama] Bad JSON:", content.slice(0, 200));
-    parsed = { should_reply: false, reason: "invalid_json", reply_text: "", risk: "low" };
   }
 
   // Если forceReply и модель всё равно сказала false — принудительно включаем
