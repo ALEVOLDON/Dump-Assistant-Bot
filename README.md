@@ -49,6 +49,7 @@ BOT_USERNAME=your_bot_username
 ALLOWED_CHAT_IDS=-1001234567890
 ALLOW_ALL_CHATS=false
 OWNER_USER_IDS=123456789
+CHANNEL_CHAT_ID=-1001234567890
 
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
@@ -62,6 +63,7 @@ GEMINI_MODEL=gemini-2.5-flash
 - `ALLOWED_CHAT_IDS` - ID разрешенных групп или каналов, через запятую.
 - `ALLOW_ALL_CHATS` - открытый режим для всех чатов. По умолчанию выключен.
 - `OWNER_USER_IDS` - Telegram ID владельцев, через запятую.
+- `CHANNEL_CHAT_ID` - ID канала для публикации через `/post` (начинается с `-100`).
 - `LLM_PROVIDER` - один из `gemini`, `openai`, `ollama`.
 
 ### 3. Подключение Telegram
@@ -159,6 +161,7 @@ Ollama-переменные можно оставить в `.env`: они не �
 
 ```bash
 npm run check
+npm test
 ```
 
 Для сайта:
@@ -167,3 +170,31 @@ npm run check
 cd website
 npm run build
 ```
+
+## Деплой
+
+### Docker
+
+```bash
+cp .env.example .env
+# заполните .env
+
+docker compose up -d --build
+```
+
+Папка `data/` монтируется как volume — состояние бота и кэш постов сохраняются между перезапусками.
+
+### Без Docker
+
+На VPS с Node.js 22+:
+
+```bash
+npm ci --omit=dev
+npm start
+```
+
+Для фонового запуска используйте `systemd`, `pm2` или аналог. При остановке бот сохраняет `data/state.json`.
+
+### CI
+
+В репозитории настроен GitHub Actions (`.github/workflows/ci.yml`): синтаксическая проверка, unit-тесты и сборка лендинга.
