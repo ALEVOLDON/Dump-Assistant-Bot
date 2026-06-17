@@ -1,6 +1,7 @@
 const { Bot } = require("grammy");
 const config = require("./config");
 const { markdownToHtml } = require("./rich");
+const { hostMediaForPost, isMediaStorageConfigured } = require("./mediaStorage");
 
 const bot = new Bot(config.telegramBotToken);
 
@@ -28,36 +29,22 @@ async function test() {
     const buffer = Buffer.from(arrayBuffer);
     console.log("File downloaded. Size:", buffer.length);
 
-    console.log("\n3. Uploading to tmpfiles.org...");
-    const fileObj = new File([buffer], "photo.jpg", { type: "image/jpeg" });
-    const formData = new FormData();
-    formData.append("file", fileObj);
-    
-    const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
-      method: "POST",
-      body: formData
+    if (!isMediaStorageConfigured(config)) {
+      throw new Error("Настройте WEBSITE_REPO_PATH и MEDIA_PUBLIC_BASE_URL в .env");
+    }
+
+    console.log("\n3. Saving media to website storage...");
+    const hosted = await hostMediaForPost(bot, config, {
+      mediaFileId: fileId,
+      mediaType: "photo",
+      fileName: "photo.jpg"
     });
-    
-    if (!uploadResponse.ok) {
-      const errText = await uploadResponse.text();
-      throw new Error(`Upload failed: ${uploadResponse.status} - ${errText}`);
-    }
-    
-    const uploadResult = await uploadResponse.json();
-    console.log("Upload result:", uploadResult);
-    
-    const originalUrl = uploadResult.data?.url;
-    if (!originalUrl) {
-      throw new Error("No URL in upload response: " + JSON.stringify(uploadResult));
-    }
-    
-    // Convert view URL to direct download URL (insert /dl/ after domain)
-    const directUrl = originalUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
-    console.log("Direct public image URL is:", directUrl);
+    const directUrl = hosted.publicUrl;
+    console.log("Public image URL is:", directUrl);
 
     console.log("\n4. Sending sendRichMessage with <img src=\"...\">...");
     const markdown = `
-# Тест с Tmpfiles Картинкой
+# Тест с Vercel Media Картинкой
 
 Это один пост с картинкой сверху и таблицей снизу!
 

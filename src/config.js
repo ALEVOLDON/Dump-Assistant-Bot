@@ -64,6 +64,10 @@ module.exports = {
   threadCooldownMs: readNumber("THREAD_COOLDOWN_MS", 90_000),
   recentMessagesLimit: readNumber("RECENT_MESSAGES_LIMIT", 8),
   urlFetchTimeoutMs: readNumber("URL_FETCH_TIMEOUT_MS", 8000),
+  websiteRepoPath: process.env.WEBSITE_REPO_PATH || "",
+  mediaStorageDir: process.env.MEDIA_STORAGE_DIR || "",
+  mediaPublicBaseUrl: (process.env.MEDIA_PUBLIC_BASE_URL || "").replace(/\/$/, ""),
+  mediaAutoDeploy: readBoolean("MEDIA_AUTO_DEPLOY", true),
   dataDir,
   promptPath: path.join(process.cwd(), "prompts", "assistant.md"),
   statePath: path.join(dataDir, "state.json"),
@@ -116,6 +120,14 @@ function validateConfig() {
     console.warn("⚠️  CHANNEL_CHAT_ID не задан — команда /post не сможет публиковать в канал.");
   } else if (!String(config.channelChatId).startsWith("-100")) {
     errors.push("CHANNEL_CHAT_ID должен быть ID канала (начинается с -100)");
+  }
+
+  if (config.websiteRepoPath && !config.mediaStorageDir) {
+    config.mediaStorageDir = path.join(path.resolve(config.websiteRepoPath), "public", "media");
+  }
+
+  if (config.mediaStorageDir && !config.mediaPublicBaseUrl) {
+    console.warn("⚠️  MEDIA_PUBLIC_BASE_URL не задан — /post не сможет встраивать медиа по публичному URL.");
   }
 
   if (errors.length > 0) {

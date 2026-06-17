@@ -1,6 +1,7 @@
 const { createAssistantDecision } = require("./llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("./logger");
+const { hostMediaForPost, isMediaStorageConfigured } = require("./mediaStorage");
 
 const FORMAT_SYSTEM_PROMPT = `Ты — профессиональный редактор Telegram-канала. Твоя задача — взять черновик поста от автора и сделать его разметку идеальной для публикации, строго сохраняя при этом оригинальный текст, структуру и стиль автора.
 
@@ -72,37 +73,6 @@ async function reformatPostWithLlm(config, postText) {
   throw new Error(`Модель не вернула текст (reason: ${formatResponse.result.reason || "unknown"})`);
 }
 
-async function uploadMediaToTmpfiles(bot, config, mediaFileId, fileName, mimeType) {
-  const file = await bot.api.getFile(mediaFileId);
-  const downloadUrl = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
-  const downloadResponse = await fetch(downloadUrl);
-  if (!downloadResponse.ok) {
-    throw new Error(`Failed to download file from Telegram: ${downloadResponse.statusText}`);
-  }
-  const arrayBuffer = await downloadResponse.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const fileObj = new File([buffer], fileName, { type: mimeType });
-  const formData = new FormData();
-  formData.append("file", fileObj);
-
-  const uploadResponse = await fetch("https://tmpfiles.org/api/v1/upload", {
-    method: "POST",
-    body: formData
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error(`Upload to tmpfiles.org returned status ${uploadResponse.status}`);
-  }
-
-  const uploadResult = await uploadResponse.json();
-  const originalUrl = uploadResult.data?.url;
-  if (!originalUrl) {
-    throw new Error("No URL returned from upload server");
-  }
-
-  return originalUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
-}
-
 function buildMediaHtmlTag(mediaType, directUrl, fileName) {
   if (mediaType === "photo") {
     return `<img src="${directUrl}" />`;
@@ -136,17 +106,26 @@ async function publishToChannel(bot, config, postText, msg) {
   let finalMarkdown = postText;
   let mediaSentSeparately = false;
   let mediaTypeSent = "";
+  let mediaDeployed = false;
   let htmlTag = "";
 
   if (mediaFileId) {
-    logger.info(`[Publishing] ${mediaType} detected. Attempting to upload to tmpfiles.org for unified Rich Message...`);
-    try {
-      const directUrl = await uploadMediaToTmpfiles(bot, config, mediaFileId, fileName, mimeType);
-      logger.info(`[Publishing] ${mediaType} successfully hosted at: ${directUrl}`);
-      htmlTag = buildMediaHtmlTag(mediaType, directUrl, fileName);
-      finalMarkdown = `${htmlTag}\n\n${postText}`;
-    } catch (uploadErr) {
-      logger.warn(`[Publishing] Temporary hosting failed for ${mediaType} (${uploadErr.message}). Falling back to sending separately.`);
+    if (isMediaStorageConfigured(config)) {
+      logger.info(`[Publishing] ${mediaType} detected. Saving to website media storage...`);
+      try {
+        const hosted = await hostMediaForPost(bot, config, { mediaFileId, mediaType, fileName });
+        logger.info(`[Publishing] ${mediaType} publicly available at: ${hosted.publicUrl}`);
+        htmlTag = buildMediaHtmlTag(mediaType, hosted.publicUrl, fileName);
+        finalMarkdown = `${htmlTag}\n\n${postText}`;
+        mediaDeployed = Boolean(config.mediaAutoDeploy && config.websiteRepoPath);
+      } catch (uploadErr) {
+        logger.warn(`[Publishing] Website media hosting failed for ${mediaType} (${uploadErr.message}). Falling back to native Telegram media.`);
+        await sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId);
+        mediaSentSeparately = true;
+        mediaTypeSent = mediaType;
+      }
+    } else {
+      logger.warn("[Publishing] Media storage is not configured. Sending media separately from text.");
       await sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId);
       mediaSentSeparately = true;
       mediaTypeSent = mediaType;
@@ -218,7 +197,7 @@ async function publishToChannel(bot, config, postText, msg) {
     ? `https://t.me/${result.chat.username}/${result.message_id}`
     : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
 
-  return { result, postLink, mediaSentSeparately, mediaTypeSent };
+  return { result, postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed };
 }
 
 async function handlePostCommand(ctx, bot, config, msg) {
@@ -255,14 +234,17 @@ async function handlePostCommand(ctx, bot, config, msg) {
       }
     }
 
-    const { postLink, mediaSentSeparately, mediaTypeSent } = await publishToChannel(bot, config, postText, msg);
+    const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postText, msg);
 
     let successMsg = `✅ Пост успешно опубликован в канале!\nСсылка: ${postLink}`;
+    if (mediaDeployed) {
+      successMsg += "\n\n🌐 Медиа залито на сайт. Vercel пересобирает деплой — публичный URL может открыться через 1–2 минуты.";
+    }
     if (mediaSentSeparately) {
       const mediaNameRu = mediaTypeSent === "photo" ? "картинка"
         : mediaTypeSent === "video" ? "видео"
           : mediaTypeSent === "animation" ? "анимация" : "документ";
-      successMsg += `\n\n⚠️ Обратите внимание: из-за ошибки временного хостинга медиа-файлов ${mediaNameRu} было отправлено отдельным сообщением перед текстом.`;
+      successMsg += `\n\n⚠️ ${mediaNameRu} отправлена отдельным сообщением перед текстом (хостинг медиа недоступен или не настроен).`;
     }
 
     await ctx.reply(successMsg);
