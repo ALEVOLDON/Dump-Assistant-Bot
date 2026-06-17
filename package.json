@@ -7,7 +7,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "check": "node --check src/index.js"
+    "check": "node --check src/index.js && node --check src/handlers/messages.js && node --check src/publishing.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=22"
