@@ -11,3 +11,7 @@ HANDOFF.md
 NOTES.md
 TODO.md
 DEBUG.md
+
+# Agent logs and temporary files
+agent-tools/
+terminals/
