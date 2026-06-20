@@ -69,7 +69,7 @@ describe("Publishing Commands and LLM Formatting", () => {
     };
 
     try {
-      const generated = await generatePostFromLinkContent(mockConfig, "Mock link page content");
+      const generated = await generatePostFromLinkContent(mockConfig, "https://example.com/mock", "Mock link page content");
       assert.equal(generated, "# 🚀 Test Post from Link\n\nThis is generated text.\n\n#test #tags");
       assert.equal(globalThis.fetch.mock.callCount(), 1);
     } finally {
