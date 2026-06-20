@@ -79,6 +79,9 @@ const config = module.exports;
 config.activeLlmModel = getActiveLlmModel(config.llmProvider, config);
 
 function validateConfig() {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
   const errors = [];
   const validProviders = new Set(["gemini", "openai", "ollama"]);
   

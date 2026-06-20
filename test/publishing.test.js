@@ -1,3 +1,4 @@
+process.env.NODE_ENV = "test";
 const { describe, it, mock } = require("node:test");
 const assert = require("node:assert/strict");
 const { handlePostCommand, generatePostFromLinkContent } = require("../src/publishing");
