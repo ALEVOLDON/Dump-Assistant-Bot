@@ -1,9 +1,10 @@
 const { isOwner, isAllowedChat } = require("../access");
 const { anonymizeId, sanitizeText } = require("../message");
 const { getRelayTarget, storeRelayTarget } = require("../relay");
-const { handlePostCommand } = require("../publishing");
+const { handlePostCommand, handleLinkPost } = require("../publishing");
 const { cacheChannelPost, isRealAutoForwardedChannelPost } = require("../postsCache");
 const { logger } = require("../logger");
+const { extractUrls } = require("../fetcher");
 
 function registerMessageHandlers(bot, deps) {
   const {
@@ -44,9 +45,27 @@ function registerMessageHandlers(bot, deps) {
         } else {
           const handled = await handlePostCommand(ctx, bot, config, msg);
           if (!handled) {
-            await ctx.reply(
-              "Не вижу, кому отправить ответ. Нажмите Reply на уведомление от пользователя, либо используйте `/post <текст>` для публикации поста в канал."
-            );
+            const isPostLink = text.startsWith("/postlink") || text.startsWith("/post_link");
+            let url = "";
+            if (isPostLink) {
+              const commandLength = text.startsWith("/postlink") ? 9 : 10;
+              url = text.slice(commandLength).trim();
+            } else {
+              const urls = extractUrls(text);
+              if (urls.length > 0) {
+                url = urls[0];
+              }
+            }
+
+            if (url) {
+              await handleLinkPost(ctx, bot, config, url);
+            } else if (isPostLink) {
+              await ctx.reply("❌ Пожалуйста, укажите корректную ссылку после команды.");
+            } else {
+              await ctx.reply(
+                "Не вижу, кому отправить ответ. Нажмите Reply на уведомление от пользователя, либо используйте `/post <текст>` для публикации поста в канал, или просто отправьте ссылку для публикации из нее."
+              );
+            }
           }
         }
         return;
