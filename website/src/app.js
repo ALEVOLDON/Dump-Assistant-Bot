@@ -185,7 +185,7 @@ async function saveSettings() {
     });
     if (res.ok) showToast('Настройки сохранены!', 'success');
   } finally {
-    setLoading(elBtnSaveSettings, false, 'Сохранить настройки');
+    setLoading(elBtnSaveSettings, false, 'Сохранить настройки', 'save');
   }
 }
 
@@ -207,7 +207,7 @@ async function generatePostFromLink() {
       renderPreview(res.generated);
     }
   } finally {
-    setLoading(elBtnGenerateLink, false, 'ИИ');
+    setLoading(elBtnGenerateLink, false, 'ИИ', 'wand-sparkles');
   }
 }
 
@@ -229,7 +229,7 @@ async function reformatPost() {
       renderPreview(res.reformatted);
     }
   } finally {
-    setLoading(elBtnReformat, false, '🪄 ИИ-стиль');
+    setLoading(elBtnReformat, false, 'ИИ-стиль', 'wand-2');
   }
 }
 
@@ -252,7 +252,7 @@ async function publishPost() {
         if (tg?.openTelegramLink && res.postLink) tg.openTelegramLink(res.postLink);
       }
     } finally {
-      setLoading(elBtnPublish, false, '🚀 Опубликовать в канал');
+      setLoading(elBtnPublish, false, 'Опубликовать в канал', 'send');
     }
   };
 
@@ -308,12 +308,16 @@ function switchTab(tab) {
 }
 
 // ── Helper: loading state ─────────────────────────────────────────
-function setLoading(btn, isLoading, label) {
+function setLoading(btn, isLoading, label, iconName) {
   btn.disabled = isLoading;
   if (isLoading) {
-    btn.innerHTML = `<div class="spinner"></div> ${label}`;
+    btn.innerHTML = `<div class="spinner"></div> <span>${label}</span>`;
   } else {
-    btn.innerHTML = `<span>${label}</span>`;
+    const iconHtml = iconName ? `<i data-lucide="${iconName}"></i> ` : '';
+    btn.innerHTML = `${iconHtml}<span>${label}</span>`;
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
   }
 }
 
