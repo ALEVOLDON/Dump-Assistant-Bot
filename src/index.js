@@ -11,6 +11,7 @@ const { registerCommands } = require("./handlers/commands");
 const { registerMessageHandlers } = require("./handlers/messages");
 const { flushStateWrite } = require("./stateWrite");
 const { logger } = require("./logger");
+const { startServer } = require("./server");
 
 if (!config.telegramBotToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN in .env");
@@ -23,6 +24,19 @@ if (!fs.existsSync(config.dataDir)) {
 const promptText = fs.readFileSync(config.promptPath, "utf8");
 const bot = new Bot(config.telegramBotToken);
 const state = readState(config.statePath);
+
+// Восстановление динамических настроек из состояния в конфиг
+if (state.llmProvider) {
+  config.llmProvider = state.llmProvider;
+  config.activeLlmModel = state.activeLlmModel;
+}
+if (state.maxReplyChars !== undefined) {
+  config.maxReplyChars = state.maxReplyChars;
+}
+if (state.threadCooldownMs !== undefined) {
+  config.threadCooldownMs = state.threadCooldownMs;
+}
+
 const posts = new PostCache(config.postsPath);
 const { rememberMessage, getRecentMessages } = createThreadStore(config, state);
 
@@ -93,5 +107,8 @@ bot.start({
     logger.info(`  Allowed chats: ${config.allowAllChats ? "all" : config.allowedChatIds.join(", ")}`);
     logger.info(`  LLM: ${config.llmProvider} / ${config.activeLlmModel}`);
     logger.info(`  Posts cached: ${Object.keys(posts.cache).length}`);
+    
+    // Запуск HTTP API-сервера
+    startServer({ config, state, posts, bot });
   }
 });

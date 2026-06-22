@@ -69,6 +69,7 @@ module.exports = {
   mediaPublicBaseUrl: (process.env.MEDIA_PUBLIC_BASE_URL || "").replace(/\/$/, ""),
   mediaAutoDeploy: readBoolean("MEDIA_AUTO_DEPLOY", true),
   dataDir,
+  port: readNumber("PORT", 3000),
   promptPath: path.join(process.cwd(), "prompts", "assistant.md"),
   statePath: path.join(dataDir, "state.json"),
   postsPath: path.join(dataDir, "posts.json")
