@@ -1,7 +1,7 @@
 process.env.NODE_ENV = "test";
 const { describe, it, mock } = require("node:test");
 const assert = require("node:assert/strict");
-const { handlePostCommand, generatePostFromLinkContent } = require("../src/publishing");
+const { handlePostCommand, generatePostFromLinkContent, publishToChannel } = require("../src/publishing");
 
 describe("Publishing Commands and LLM Formatting", () => {
   it("distinguishes regular post commands from postlink", async () => {
@@ -77,4 +77,36 @@ describe("Publishing Commands and LLM Formatting", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("publishes with customMedia ogImage when present", async () => {
+    const mockBot = {
+      api: {
+        sendPhoto: mock.fn(() => Promise.resolve({
+          message_id: 123,
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567"
+    };
+
+    const { result, postLink } = await publishToChannel(
+      mockBot,
+      mockConfig,
+      "Post content",
+      null,
+      { ogImage: "https://example.com/cover.jpg" }
+    );
+
+    assert.equal(postLink, "https://t.me/mychannel/123");
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1);
+    
+    const calls = mockBot.api.sendPhoto.mock.calls[0];
+    assert.equal(calls.arguments[0], "-1001234567");
+    assert.equal(calls.arguments[1], "https://example.com/cover.jpg");
+    assert.match(calls.arguments[2].caption, /Post content/);
+  });
 });
+

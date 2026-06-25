@@ -210,7 +210,7 @@ function isYoutubeUrl(urlString) {
   }
 }
 
-async function fetchYoutubeOembedContext(urlString, signal) {
+async function fetchYoutubeOembedMetadata(urlString, signal) {
   const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
   const parsed = new URL(oembedUrl);
   const safeAddresses = await resolveSafeAddresses(parsed.hostname);
@@ -219,22 +219,80 @@ async function fetchYoutubeOembedContext(urlString, signal) {
   const response = await requestTextResponse(oembedUrl, safeAddresses, signal);
   if (!response.ok) return null;
 
-  const data = JSON.parse(response.text);
-  const lines = [];
-  if (data.title) lines.push(`ЗАГОЛОВОК: ${data.title}`);
-  if (data.author_name) lines.push(`АВТОР/КАНАЛ: ${data.author_name}`);
-  if (data.provider_name) lines.push(`ИСТОЧНИК: ${data.provider_name}`);
-  return lines.join("\n") || null;
+  try {
+    const data = JSON.parse(response.text);
+    const lines = [];
+    if (data.title) lines.push(`ЗАГОЛОВОК: ${data.title}`);
+    if (data.author_name) lines.push(`АВТОР/КАНАЛ: ${data.author_name}`);
+    if (data.provider_name) lines.push(`ИСТОЧНИК: ${data.provider_name}`);
+    return {
+      text: lines.join("\n") || null,
+      ogImage: data.thumbnail_url || null
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchYoutubeOembedContext(urlString, signal) {
+  const meta = await fetchYoutubeOembedMetadata(urlString, signal);
+  return meta ? meta.text : null;
+}
+
+/** Извлечь OG картинку из HTML */
+function extractOgImage(html) {
+  if (!html) return null;
+
+  // 1. og:image
+  let match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+              html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+
+  // 2. twitter:image
+  if (!match) {
+    match = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+  }
+
+  // 3. itemprop="image"
+  if (!match) {
+    match = html.match(/<meta[^>]*itemprop=["']image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*itemprop=["']image["']/i);
+  }
+
+  // 4. link rel="image_src"
+  if (!match) {
+    match = html.match(/<link[^>]*rel=["']image_src["'][^>]*href=["']([^"']+)["'][^>]*>/i) ||
+            html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']image_src["']/i);
+  }
+
+  if (match) {
+    return match[1]
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+  }
+  return null;
+}
+
+/** Разрешить относительный URL картинки */
+function resolveUrl(baseUrl, relativeUrl) {
+  try {
+    return new URL(relativeUrl, baseUrl).toString();
+  } catch {
+    return relativeUrl;
+  }
 }
 
 /**
- * Загрузить содержимое URL и вернуть очищенный текст.
- * Возвращает null если не удалось или контент не текстовый.
+ * Загрузить содержимое URL и вернуть очищенный текст + OG картинку.
  * @param {string} url
  * @param {number} [timeoutMs]
- * @returns {Promise<string|null>}
+ * @returns {Promise<{ text: string|null, ogImage: string|null }|null>}
  */
-async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
+async function fetchUrlMetadata(url, timeoutMs = FETCH_TIMEOUT_MS) {
   if (!isSafeUrl(url)) return null;
 
   const controller = new AbortController();
@@ -246,13 +304,14 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
     let response;
 
     if (isYoutubeUrl(url)) {
-      const oembedContext = await fetchYoutubeOembedContext(url, controller.signal).catch(() => null);
-      if (oembedContext) return oembedContext.slice(0, MAX_TEXT_LENGTH);
+      const oembedMeta = await fetchYoutubeOembedMetadata(url, controller.signal).catch(() => null);
+      if (oembedMeta) {
+        if (oembedMeta.text) oembedMeta.text = oembedMeta.text.slice(0, MAX_TEXT_LENGTH);
+        return oembedMeta;
+      }
     }
 
-    // Следуем по редиректам вручную с проверкой каждого URL
     while (redirectCount <= MAX_REDIRECTS) {
-      // Проверяем текущий URL перед запросом
       if (!isSafeUrl(currentUrl)) {
         return null;
       }
@@ -261,19 +320,15 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
       const safeAddresses = await resolveSafeAddresses(parsed.hostname);
       if (!safeAddresses.length) return null;
 
-      // Важно: фиксируем DNS-ответ в lookup, чтобы избежать DNS rebinding между check и connect.
       response = await requestTextResponse(currentUrl, safeAddresses, controller.signal);
 
-      // Если нет редиректа, выходим
       if (!response.status || response.status < 300 || response.status >= 400) {
         break;
       }
 
-      // Обрабатываем редирект
       const location = response.headers.location;
       if (!location) break;
 
-      // Преобразуем относительный URL в абсолютный
       currentUrl = new URL(location, currentUrl).toString();
       redirectCount++;
     }
@@ -289,7 +344,16 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
     if (isYoutubeUrl(url) && /^ЗАГОЛОВОК:\s*- YouTube\b/.test(text)) {
       return null;
     }
-    return text.slice(0, MAX_TEXT_LENGTH) || null;
+
+    let ogImage = extractOgImage(raw);
+    if (ogImage) {
+      ogImage = resolveUrl(currentUrl, ogImage);
+    }
+
+    return {
+      text: text.slice(0, MAX_TEXT_LENGTH) || null,
+      ogImage: ogImage || null
+    };
   } catch {
     return null;
   } finally {
@@ -297,9 +361,24 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
   }
 }
 
+/**
+ * Загрузить содержимое URL и вернуть очищенный текст.
+ * Возвращает null если не удалось или контент не текстовый.
+ * @param {string} url
+ * @param {number} [timeoutMs]
+ * @returns {Promise<string|null>}
+ */
+async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
+  const meta = await fetchUrlMetadata(url, timeoutMs);
+  return meta ? meta.text : null;
+}
+
 module.exports = {
   extractUrls,
   fetchUrlContent,
+  fetchUrlMetadata,
+  extractOgImage,
   isSafeUrl,
   stripHtml
 };
+

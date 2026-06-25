@@ -1,8 +1,8 @@
 const { createAssistantDecision } = require("./llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("./logger");
-const { hostMediaForPost, isMediaStorageConfigured } = require("./mediaStorage");
-const { fetchUrlContent } = require("./fetcher");
+const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
+const { fetchUrlContent, fetchUrlMetadata } = require("./fetcher");
 
 const FORMAT_SYSTEM_PROMPT = `Ты — профессиональный редактор Telegram-канала. Твоя задача — взять черновик поста от автора и сделать его разметку идеальной для публикации, строго сохраняя при этом оригинальный текст, структуру и стиль автора.
 
@@ -148,13 +148,24 @@ async function sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId) {
   }
 }
 
-async function publishToChannel(bot, config, postText, msg) {
+async function publishToChannel(bot, config, postText, msg, customMedia = null) {
   if (!config.channelChatId) {
     throw new Error("CHANNEL_CHAT_ID не задан в .env");
   }
 
   const channelChatId = config.channelChatId;
-  const { mediaFileId, mediaType, fileName, mimeType } = extractMediaFromMessage(msg);
+  const { mediaFileId, mediaType, fileName, mimeType } = extractMediaFromMessage(msg || {});
+
+  let finalMediaFileId = mediaFileId;
+  let finalMediaType = mediaType;
+  let finalFileName = fileName;
+  let ogImageUrl = null;
+
+  if (!finalMediaFileId && customMedia && customMedia.ogImage) {
+    ogImageUrl = customMedia.ogImage;
+    finalMediaType = "photo";
+    finalFileName = "cover.jpg";
+  }
 
   let finalMarkdown = postText;
   let mediaSentSeparately = false;
@@ -162,26 +173,42 @@ async function publishToChannel(bot, config, postText, msg) {
   let mediaDeployed = false;
   let htmlTag = "";
 
-  if (mediaFileId) {
+  if (finalMediaFileId || ogImageUrl) {
     if (isMediaStorageConfigured(config)) {
-      logger.info(`[Publishing] ${mediaType} detected. Saving to website media storage...`);
+      logger.info(`[Publishing] ${finalMediaType} detected. Saving to website media storage...`);
       try {
-        const hosted = await hostMediaForPost(bot, config, { mediaFileId, mediaType, fileName });
-        logger.info(`[Publishing] ${mediaType} publicly available at: ${hosted.publicUrl}`);
-        htmlTag = buildMediaHtmlTag(mediaType, hosted.publicUrl, fileName);
+        let hosted;
+        if (finalMediaFileId) {
+          hosted = await hostMediaForPost(bot, config, { mediaFileId: finalMediaFileId, mediaType: finalMediaType, fileName: finalFileName });
+        } else {
+          hosted = await hostWebMediaForPost(config, ogImageUrl, finalMediaType, finalFileName);
+        }
+        logger.info(`[Publishing] ${finalMediaType} publicly available at: ${hosted.publicUrl}`);
+        htmlTag = buildMediaHtmlTag(finalMediaType, hosted.publicUrl, finalFileName);
         finalMarkdown = `${htmlTag}\n\n${postText}`;
         mediaDeployed = Boolean(config.mediaAutoDeploy && config.websiteRepoPath);
       } catch (uploadErr) {
-        logger.warn(`[Publishing] Website media hosting failed for ${mediaType} (${uploadErr.message}). Falling back to native Telegram media.`);
-        await sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId);
-        mediaSentSeparately = true;
-        mediaTypeSent = mediaType;
+        logger.warn(`[Publishing] Website media hosting failed for ${finalMediaType} (${uploadErr.message}). Falling back to direct URL / native Telegram media.`);
+        if (ogImageUrl) {
+          htmlTag = buildMediaHtmlTag(finalMediaType, ogImageUrl, finalFileName);
+          finalMarkdown = `${htmlTag}\n\n${postText}`;
+        } else {
+          await sendMediaSeparately(bot, channelChatId, finalMediaType, finalMediaFileId);
+          mediaSentSeparately = true;
+          mediaTypeSent = finalMediaType;
+        }
       }
     } else {
-      logger.warn("[Publishing] Media storage is not configured. Sending media separately from text.");
-      await sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId);
-      mediaSentSeparately = true;
-      mediaTypeSent = mediaType;
+      logger.warn("[Publishing] Media storage is not configured.");
+      if (ogImageUrl) {
+        htmlTag = buildMediaHtmlTag(finalMediaType, ogImageUrl, finalFileName);
+        finalMarkdown = `${htmlTag}\n\n${postText}`;
+      } else {
+        logger.warn("Sending media separately from text.");
+        await sendMediaSeparately(bot, channelChatId, finalMediaType, finalMediaFileId);
+        mediaSentSeparately = true;
+        mediaTypeSent = finalMediaType;
+      }
     }
   }
 
@@ -205,21 +232,25 @@ async function publishToChannel(bot, config, postText, msg) {
       .replace(/<video[^>]*>/gi, "")
       .trim();
 
-    if (mediaFileId && !mediaSentSeparately) {
+    if ((finalMediaFileId || ogImageUrl) && !mediaSentSeparately) {
       if (htmlContent.length <= 1024) {
         const sendParams = {
           chat_id: channelChatId,
           caption: htmlContent,
           parse_mode: "HTML"
         };
-        if (mediaType === "photo") {
-          result = await bot.api.sendPhoto(channelChatId, mediaFileId, sendParams);
-        } else if (mediaType === "video") {
-          result = await bot.api.sendVideo(channelChatId, mediaFileId, sendParams);
-        } else if (mediaType === "animation") {
-          result = await bot.api.sendAnimation(channelChatId, mediaFileId, sendParams);
-        } else if (mediaType === "document") {
-          result = await bot.api.sendDocument(channelChatId, mediaFileId, sendParams);
+        if (finalMediaFileId) {
+          if (finalMediaType === "photo") {
+            result = await bot.api.sendPhoto(channelChatId, finalMediaFileId, sendParams);
+          } else if (finalMediaType === "video") {
+            result = await bot.api.sendVideo(channelChatId, finalMediaFileId, sendParams);
+          } else if (finalMediaType === "animation") {
+            result = await bot.api.sendAnimation(channelChatId, finalMediaFileId, sendParams);
+          } else if (finalMediaType === "document") {
+            result = await bot.api.sendDocument(channelChatId, finalMediaFileId, sendParams);
+          }
+        } else if (ogImageUrl) {
+          result = await bot.api.sendPhoto(channelChatId, ogImageUrl, sendParams);
         }
       } else {
         let textWithMedia = htmlContent;
@@ -329,14 +360,14 @@ async function handleLinkPost(ctx, bot, config, url) {
   try {
     const statusMsg = await ctx.reply(`🔍 Загружаю содержимое ссылки: ${url}...`);
 
-    let content;
+    let meta;
     try {
-      content = await fetchUrlContent(url);
+      meta = await fetchUrlMetadata(url);
     } catch (fetchErr) {
       logger.error(`[Publishing] URL fetch error: ${fetchErr.message}`);
     }
 
-    if (!content) {
+    if (!meta || !meta.text) {
       await ctx.api.editMessageText(
         ctx.chat.id,
         statusMsg.message_id,
@@ -351,10 +382,12 @@ async function handleLinkPost(ctx, bot, config, url) {
       "✍️ Анализирую контент и генерирую пост с помощью ИИ..."
     );
 
-    const generatedText = await generatePostFromLinkContent(config, url, content);
+    const generatedText = await generatePostFromLinkContent(config, url, meta.text);
     const postWithSource = generatedText;
 
-    const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message);
+    const customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;
+
+    const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message, customMedia);
 
     let successMsg = `✅ Пост по ссылке успешно опубликован в канале!\nСсылка: ${postLink}`;
     if (mediaDeployed) {

@@ -76,10 +76,35 @@ async function hostMediaForPost(bot, config, { mediaFileId, mediaType, fileName 
   return { publicUrl, relativePath, absolutePath };
 }
 
+async function hostWebMediaForPost(config, webUrl, mediaType, fileName) {
+  if (!isMediaStorageConfigured(config)) {
+    throw new Error("Media storage is not configured (MEDIA_STORAGE_DIR / MEDIA_PUBLIC_BASE_URL)");
+  }
+
+  const response = await fetch(webUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download web media: ${response.statusText}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { absolutePath, relativePath } = await saveMediaBuffer(config, buffer, mediaType, fileName);
+  const publicUrl = buildPublicMediaUrl(config, relativePath);
+
+  logger.info(`[Media] Saved web media from ${webUrl} to ${absolutePath}`);
+
+  if (config.mediaAutoDeploy && config.websiteRepoPath) {
+    await deployWebsiteFile(config, absolutePath);
+  }
+
+  return { publicUrl, relativePath, absolutePath };
+}
+
 module.exports = {
   isMediaStorageConfigured,
   sanitizeExtension,
   buildStoredFileName,
   buildPublicMediaUrl,
-  hostMediaForPost
+  hostMediaForPost,
+  hostWebMediaForPost
 };
