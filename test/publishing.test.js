@@ -108,5 +108,43 @@ describe("Publishing Commands and LLM Formatting", () => {
     assert.equal(calls.arguments[1], "https://example.com/cover.jpg");
     assert.match(calls.arguments[2].caption, /Post content/);
   });
+
+  it("publishes long post with sourceUrl using sendMessage and link_preview_options", async () => {
+    const mockBot = {
+      api: {
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 456,
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567"
+    };
+
+    const longText = "a".repeat(1050);
+    const { result, postLink } = await publishToChannel(
+      mockBot,
+      mockConfig,
+      longText,
+      null,
+      { ogImage: "https://example.com/cover.jpg" },
+      "https://example.com/article"
+    );
+
+    assert.equal(postLink, "https://t.me/mychannel/456");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
+    
+    const calls = mockBot.api.sendMessage.mock.calls[0];
+    assert.equal(calls.arguments[0], "-1001234567");
+    assert.match(calls.arguments[1], /href="https:\/\/example\.com\/article"/);
+    assert.deepEqual(calls.arguments[2].link_preview_options, {
+      is_disabled: false,
+      url: "https://example.com/article",
+      prefer_large_media: true,
+      show_above_text: true
+    });
+  });
 });
 

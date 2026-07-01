@@ -239,41 +239,58 @@ async function fetchYoutubeOembedContext(urlString, signal) {
   return meta ? meta.text : null;
 }
 
+function getAttr(tag, attrName) {
+  const regex = new RegExp(`${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
+  const match = tag.match(regex);
+  return match ? (match[1] || match[2] || match[3] || "") : null;
+}
+
 /** Извлечь OG картинку из HTML */
 function extractOgImage(html) {
   if (!html) return null;
 
-  // 1. og:image
-  let match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
-              html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+  const metaTags = html.match(/<meta\s+[^>]+>/gi) || [];
+  for (const tag of metaTags) {
+    const property = getAttr(tag, "property") || "";
+    const name = getAttr(tag, "name") || "";
+    const itemprop = getAttr(tag, "itemprop") || "";
+    const content = getAttr(tag, "content");
 
-  // 2. twitter:image
-  if (!match) {
-    match = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
-            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+    if (content) {
+      const isImage = 
+        /^(og:image|og:image:url|og:image:secure_url)$/i.test(property) ||
+        /^(og:image|og:image:url|og:image:secure_url)$/i.test(name) ||
+        /^(twitter:image|twitter:image:src)$/i.test(property) ||
+        /^(twitter:image|twitter:image:src)$/i.test(name) ||
+        /^image$/i.test(itemprop);
+
+      if (isImage) {
+        return content
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim();
+      }
+    }
   }
 
-  // 3. itemprop="image"
-  if (!match) {
-    match = html.match(/<meta[^>]*itemprop=["']image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
-            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*itemprop=["']image["']/i);
+  const linkTags = html.match(/<link\s+[^>]+>/gi) || [];
+  for (const tag of linkTags) {
+    const rel = getAttr(tag, "rel") || "";
+    const href = getAttr(tag, "href");
+    if (href && /^image_src$/i.test(rel)) {
+      return href
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+    }
   }
 
-  // 4. link rel="image_src"
-  if (!match) {
-    match = html.match(/<link[^>]*rel=["']image_src["'][^>]*href=["']([^"']+)["'][^>]*>/i) ||
-            html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']image_src["']/i);
-  }
-
-  if (match) {
-    return match[1]
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim();
-  }
   return null;
 }
 

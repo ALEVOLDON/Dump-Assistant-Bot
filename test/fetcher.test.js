@@ -73,4 +73,29 @@ describe("extractOgImage", () => {
     const html = `<html><head><title>No Image</title></head></html>`;
     assert.equal(extractOgImage(html), null);
   });
+
+  it("extracts og:image with single quotes and name attribute", () => {
+    const html = `<html><head><meta name='og:image' content='https://example.com/cover2.jpg' /></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover2.jpg");
+  });
+
+  it("extracts og:image when content attribute comes before property attribute", () => {
+    const html = `<html><head><meta content="https://example.com/cover3.jpg" property="og:image" /></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover3.jpg");
+  });
+
+  it("extracts twitter:image:src", () => {
+    const html = `<html><head><meta name="twitter:image:src" content="https://example.com/cover4.jpg" /></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover4.jpg");
+  });
+
+  it("extracts og:image with spaces around equals and unquoted attributes", () => {
+    const html = `<html><head><meta property = og:image content = https://example.com/cover5.jpg ></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover5.jpg");
+  });
+
+  it("extracts og:image when meta tag has multiple extra attributes", () => {
+    const html = `<html><head><meta class="meta-tag" property="og:image" data-test="123" content="https://example.com/cover6.jpg" /></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover6.jpg");
+  });
 });

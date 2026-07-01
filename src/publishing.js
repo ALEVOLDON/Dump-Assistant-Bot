@@ -1,3 +1,5 @@
+const fs = require("fs");
+const { InputFile } = require("grammy");
 const { createAssistantDecision } = require("./llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("./logger");
@@ -148,7 +150,7 @@ async function sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId) {
   }
 }
 
-async function publishToChannel(bot, config, postText, msg, customMedia = null) {
+async function publishToChannel(bot, config, postText, msg, customMedia = null, sourceUrl = null) {
   if (!config.channelChatId) {
     throw new Error("CHANNEL_CHAT_ID не задан в .env");
   }
@@ -172,6 +174,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null) 
   let mediaTypeSent = "";
   let mediaDeployed = false;
   let htmlTag = "";
+  let localMediaPath = null;
 
   if (finalMediaFileId || ogImageUrl) {
     if (isMediaStorageConfigured(config)) {
@@ -187,6 +190,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null) 
         htmlTag = buildMediaHtmlTag(finalMediaType, hosted.publicUrl, finalFileName);
         finalMarkdown = `${htmlTag}\n\n${postText}`;
         mediaDeployed = Boolean(config.mediaAutoDeploy && config.websiteRepoPath);
+        localMediaPath = hosted.absolutePath;
       } catch (uploadErr) {
         logger.warn(`[Publishing] Website media hosting failed for ${finalMediaType} (${uploadErr.message}). Falling back to direct URL / native Telegram media.`);
         if (ogImageUrl) {
@@ -232,8 +236,8 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null) 
       .replace(/<video[^>]*>/gi, "")
       .trim();
 
-    if ((finalMediaFileId || ogImageUrl) && !mediaSentSeparately) {
-      if (htmlContent.length <= 1024) {
+    if ((finalMediaFileId || ogImageUrl || sourceUrl) && !mediaSentSeparately) {
+      if (htmlContent.length <= 1024 && (finalMediaFileId || ogImageUrl)) {
         const sendParams = {
           chat_id: channelChatId,
           caption: htmlContent,
@@ -250,20 +254,31 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null) 
             result = await bot.api.sendDocument(channelChatId, finalMediaFileId, sendParams);
           }
         } else if (ogImageUrl) {
-          result = await bot.api.sendPhoto(channelChatId, ogImageUrl, sendParams);
+          if (localMediaPath && fs.existsSync(localMediaPath)) {
+            result = await bot.api.sendPhoto(channelChatId, new InputFile(localMediaPath), sendParams);
+          } else {
+            result = await bot.api.sendPhoto(channelChatId, ogImageUrl, sendParams);
+          }
         }
       } else {
         let textWithMedia = htmlContent;
-        if (htmlTag && htmlTag.includes("src=")) {
+        let previewUrl = sourceUrl;
+        if (!previewUrl && htmlTag && htmlTag.includes("src=")) {
           const srcMatch = htmlTag.match(/src="([^"]+)"/);
           if (srcMatch && srcMatch[1]) {
-            textWithMedia = `<a href="${srcMatch[1]}">&#160;</a>${htmlContent}`;
+            previewUrl = srcMatch[1];
           }
         }
+
+        if (previewUrl) {
+          textWithMedia = `<a href="${previewUrl}">&#160;</a>${htmlContent}`;
+        }
+
         result = await bot.api.sendMessage(channelChatId, textWithMedia, {
           parse_mode: "HTML",
           link_preview_options: {
-            is_disabled: false,
+            is_disabled: previewUrl ? false : true,
+            url: previewUrl || undefined,
             prefer_large_media: true,
             show_above_text: true
           }
@@ -387,7 +402,7 @@ async function handleLinkPost(ctx, bot, config, url) {
 
     const customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;
 
-    const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message, customMedia);
+    const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message, customMedia, url);
 
     let successMsg = `✅ Пост по ссылке успешно опубликован в канале!\nСсылка: ${postLink}`;
     if (mediaDeployed) {
