@@ -278,7 +278,6 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           parse_mode: "HTML",
           link_preview_options: {
             is_disabled: previewUrl ? false : true,
-            url: previewUrl || undefined,
             prefer_large_media: true,
             show_above_text: true
           }

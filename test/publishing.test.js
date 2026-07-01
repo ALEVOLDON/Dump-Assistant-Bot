@@ -141,7 +141,6 @@ describe("Publishing Commands and LLM Formatting", () => {
     assert.match(calls.arguments[1], /href="https:\/\/example\.com\/article"/);
     assert.deepEqual(calls.arguments[2].link_preview_options, {
       is_disabled: false,
-      url: "https://example.com/article",
       prefer_large_media: true,
       show_above_text: true
     });
