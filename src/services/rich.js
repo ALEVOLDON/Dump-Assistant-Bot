@@ -1,5 +1,5 @@
 const { marked } = require("marked");
-const config = require("./config");
+const config = require("../core/config");
 
 let currentIsRich = true;
 

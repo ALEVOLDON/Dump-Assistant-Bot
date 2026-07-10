@@ -1,8 +1,8 @@
 const fs = require("fs");
 const { InputFile } = require("grammy");
-const { createAssistantDecision } = require("./llm");
+const { createAssistantDecision } = require("../llm/llm");
 const { markdownToHtml } = require("./rich");
-const { logger } = require("./logger");
+const { logger } = require("../core/logger");
 const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
 const { fetchUrlContent, fetchUrlMetadata } = require("./fetcher");
 

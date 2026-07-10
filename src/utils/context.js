@@ -1,4 +1,4 @@
-const { extractUrls, fetchUrlContent } = require("./fetcher");
+const { extractUrls, fetchUrlContent } = require("../services/fetcher");
 const { isOwner, isChannelOwner } = require("./access");
 const { sanitizeText } = require("./message");
 

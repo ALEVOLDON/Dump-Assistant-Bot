@@ -1,17 +1,16 @@
 const fs = require("fs");
 const { Bot } = require("grammy");
-const config = require("./config");
-const { readState, writeState } = require("./state");
-const { PostCache } = require("./posts");
-const { createThreadStore } = require("./thread");
-const { ensureRelayState } = require("./relay");
-const { createReplyHandler } = require("./reply");
-const { createAutoCommentHandler } = require("./autoComment");
+const config = require("./core/config");
+const { readState, writeState, flushStateWrite } = require("./core/state");
+const { PostCache } = require("./services/posts");
+const { createThreadStore } = require("./utils/thread");
+const { ensureRelayState } = require("./utils/relay");
+const { createReplyHandler } = require("./services/reply");
+const { createAutoCommentHandler } = require("./services/autoComment");
 const { registerCommands } = require("./handlers/commands");
 const { registerMessageHandlers } = require("./handlers/messages");
-const { flushStateWrite } = require("./stateWrite");
-const { logger } = require("./logger");
-const { startServer } = require("./server");
+const { logger } = require("./core/logger");
+const { startServer } = require("./core/server");
 
 if (!config.telegramBotToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN in .env");

@@ -1,10 +1,10 @@
-const { createAssistantDecision } = require("./llm");
+const { createAssistantDecision } = require("../llm/llm");
 const { sendRichMessageWithFallback } = require("./rich");
-const { analyzeMessage } = require("./analysis");
-const { getPostContext, buildUserPrompt } = require("./context");
-const { getThreadKey, sanitizeText, extractText } = require("./message");
-const { scheduleStateWrite } = require("./stateWrite");
-const { logger } = require("./logger");
+const { analyzeMessage } = require("../utils/analysis");
+const { getPostContext, buildUserPrompt } = require("../utils/context");
+const { getThreadKey, sanitizeText, extractText } = require("../utils/message");
+const { scheduleStateWrite } = require("../core/state");
+const { logger } = require("../core/logger");
 
 function trimReply(config, text) {
   const s = (text || "")

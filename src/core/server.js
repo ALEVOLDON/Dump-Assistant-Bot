@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const { logger } = require("./logger");
-const createApiRouter = require("./routes/api");
+const createApiRouter = require("../routes/api");
 
 function startServer({ config, state, posts, bot }) {
   const app = express();

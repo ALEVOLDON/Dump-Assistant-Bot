@@ -1,6 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { extractUrls, isSafeUrl, stripHtml, extractOgImage, fetchUrlMetadata } = require("../src/fetcher");
+const { extractUrls, isSafeUrl, stripHtml, extractOgImage, fetchUrlMetadata } = require("../src/services/fetcher");
 
 describe("extractUrls", () => {
   it("extracts unique http(s) links", () => {

@@ -1,6 +1,6 @@
 const { execSync } = require("child_process");
 const path = require("path");
-const { logger } = require("./logger");
+const { logger } = require("../core/logger");
 
 function deployWebsiteFile(config, absoluteFilePath) {
   const repoPath = path.resolve(config.websiteRepoPath);

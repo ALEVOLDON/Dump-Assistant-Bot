@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { logger } = require("./logger");
+const { logger } = require("../core/logger");
 const { deployWebsiteFile } = require("./siteDeploy");
 
 const EXTENSION_BY_MEDIA_TYPE = {

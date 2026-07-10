@@ -1,7 +1,7 @@
 process.env.NODE_ENV = "test";
 const { describe, it, mock } = require("node:test");
 const assert = require("node:assert/strict");
-const { handlePostCommand, generatePostFromLinkContent, publishToChannel } = require("../src/publishing");
+const { handlePostCommand, generatePostFromLinkContent, publishToChannel } = require("../src/services/publishing");
 
 describe("Publishing Commands and LLM Formatting", () => {
   it("distinguishes regular post commands from postlink", async () => {

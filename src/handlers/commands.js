@@ -1,5 +1,5 @@
-const { isOwner } = require("../access");
-const { writeState } = require("../state");
+const { isOwner } = require("../utils/access");
+const { writeState } = require("../core/state");
 
 function registerCommands(bot, { config, state, posts }) {
   bot.command("status", async (ctx) => {

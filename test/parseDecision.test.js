@@ -1,7 +1,7 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { parseDecisionJson } = require("../src/parseDecision");
-const { applyForceReply } = require("../src/llm");
+const { parseDecisionJson } = require("../src/llm/parseDecision");
+const { applyForceReply } = require("../src/llm/llm");
 
 describe("parseDecisionJson", () => {
   it("parses valid json", () => {

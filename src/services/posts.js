@@ -1,11 +1,7 @@
-/**
- * posts.js — кэш постов канала.
- * Когда пост публикуется в канале, Telegram автоматически форвардит его
- * в связанную группу обсуждений. Мы сохраняем эти посты, чтобы бот знал
- * контекст треда при ответе на вопросы.
- */
-
 const fs = require("fs");
+const { extractUrls } = require("./fetcher");
+const { extractText } = require("../utils/message");
+const { logger } = require("../core/logger");
 
 const MAX_POSTS = 300; // максимум хранимых постов
 
@@ -63,4 +59,22 @@ class PostCache {
   }
 }
 
-module.exports = { PostCache };
+function cacheChannelPost(posts, message) {
+  const text = extractText(message);
+  const urls = extractUrls(text);
+  posts.set(message.message_id, { text, urls, date: message.date * 1000 });
+  logger.info(`[Post cached] id=${message.message_id} urls=${urls.length}`);
+}
+
+function isRealAutoForwardedChannelPost(message) {
+  if (!message?.is_automatic_forward) return false;
+  if (message.sender_chat?.type === "channel") return true;
+  if (!message.from) return true;
+  return false;
+}
+
+module.exports = {
+  PostCache,
+  cacheChannelPost,
+  isRealAutoForwardedChannelPost
+};

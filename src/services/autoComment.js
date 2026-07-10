@@ -1,8 +1,8 @@
-const { createAssistantDecision } = require("./llm");
+const { createAssistantDecision } = require("../llm/llm");
 const { sendRichMessageWithFallback } = require("./rich");
 const { extractUrls, fetchUrlContent } = require("./fetcher");
-const { extractText } = require("./message");
-const { logger } = require("./logger");
+const { extractText } = require("../utils/message");
+const { logger } = require("../core/logger");
 
 const AUTO_COMMENT_SYSTEM_PROMPT = `Ты — умный и харизматичный ИИ-ассистент этого Telegram-канала.
 Твоя задача — написать первый комментарий к новому посту автора.

@@ -1,6 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { analyzeMessage, isNoise, isQuestion, isDirectAddress } = require("../src/analysis");
+const { analyzeMessage, isNoise, isQuestion, isDirectAddress } = require("../src/utils/analysis");
 
 const baseConfig = {
   botUsername: "testbot",

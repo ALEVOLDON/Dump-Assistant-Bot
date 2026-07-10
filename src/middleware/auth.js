@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { logger } = require("../logger");
+const { logger } = require("../core/logger");
 
 function createAuthMiddleware({ config }) {
   return function authMiddleware(req, res, next) {

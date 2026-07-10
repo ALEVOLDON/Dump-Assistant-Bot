@@ -1,12 +1,12 @@
 const express = require("express");
-const { fetchUrlContent } = require("../fetcher");
+const { fetchUrlContent } = require("../services/fetcher");
 const { 
   publishToChannel, 
   reformatPostWithLlm, 
   generatePostFromLinkContent 
-} = require("../publishing");
-const { writeState } = require("../state");
-const { logger } = require("../logger");
+} = require("../services/publishing");
+const { writeState } = require("../core/state");
+const { logger } = require("../core/logger");
 
 function createApiRouter({ config, state, posts, bot }) {
   const router = express.Router();

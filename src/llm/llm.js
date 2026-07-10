@@ -1,5 +1,4 @@
-const { createGeminiDecision, createOpenAiDecision } = require("./providers");
-const { createOllamaDecision } = require("./ollama");
+const { createGeminiDecision, createOpenAiDecision, createOllamaDecision } = require("./providers");
 
 async function createAssistantDecision(config, payload) {
   let response;

@@ -1,10 +1,10 @@
-const { isOwner, isAllowedChat } = require("../access");
-const { anonymizeId, sanitizeText } = require("../message");
-const { getRelayTarget, storeRelayTarget } = require("../relay");
-const { handlePostCommand, handleLinkPost } = require("../publishing");
-const { cacheChannelPost, isRealAutoForwardedChannelPost } = require("../postsCache");
-const { logger } = require("../logger");
-const { extractUrls } = require("../fetcher");
+const { isOwner, isAllowedChat } = require("../utils/access");
+const { anonymizeId, sanitizeText } = require("../utils/message");
+const { getRelayTarget, storeRelayTarget } = require("../utils/relay");
+const { handlePostCommand, handleLinkPost } = require("../services/publishing");
+const { cacheChannelPost, isRealAutoForwardedChannelPost } = require("../services/posts");
+const { logger } = require("../core/logger");
+const { extractUrls } = require("../services/fetcher");
 
 function registerMessageHandlers(bot, deps) {
   const {

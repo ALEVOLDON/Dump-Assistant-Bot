@@ -5,7 +5,7 @@ const {
   buildStoredFileName,
   isMediaStorageConfigured,
   sanitizeExtension
-} = require("../src/mediaStorage");
+} = require("../src/services/mediaStorage");
 
 describe("sanitizeExtension", () => {
   it("keeps safe extensions from file names", () => {

@@ -3,7 +3,6 @@ const { parseDecisionJson } = require("./parseDecision");
 async function createGeminiDecision(config, payload) {
   const url = `${config.geminiBaseUrl}/models/${config.geminiModel}:generateContent`;
 
-  // Отладка - проверяем ключ
   if (!config.geminiApiKey) {
     throw new Error("Gemini API key is missing! Check GEMINI_API_KEY in .env");
   }
@@ -49,7 +48,6 @@ async function createGeminiDecision(config, payload) {
             }
           };
 
-          // Turn off thinking for Gemini 2.5+ models to prevent MaxTokens truncation of JSON responses
           if (config.geminiModel.includes("2.5") || config.geminiModel.includes("3.")) {
             genConfig.thinkingConfig = {
               thinkingBudget: 0
@@ -168,4 +166,84 @@ async function createOpenAiDecision(config, payload) {
   };
 }
 
-module.exports = { createGeminiDecision, createOpenAiDecision };
+async function createOllamaDecision(config, payload) {
+  const url = `${config.ollamaBaseUrl}/api/chat`;
+
+  const systemContent = [
+    payload.systemPrompt.trim(),
+    "",
+    "═══",
+    "Формат ответа — ТОЛЬКО валидный JSON, без пояснений вне JSON:",
+    '{"should_reply": boolean, "reply_text": "...", "reason": "...", "risk": "low|medium|high"}',
+    "",
+    payload.noSuffix
+      ? ""
+      : (payload.forceReply
+          ? 'should_reply ДОЛЖЕН быть true. Напиши живой короткий ответ в reply_text.'
+          : 'Если отвечать не нужно — should_reply: false, reply_text: "".')
+  ].filter(val => val !== undefined && val !== "").join("\n");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.llmTimeoutMs);
+  let response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.ollamaModel,
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: payload.userPrompt }
+        ],
+        stream: false,
+        format: "json",
+        options: {
+          temperature: 0.4,
+          num_ctx: config.ollamaNumCtx,
+          num_predict: config.ollamaNumPredict
+        }
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error(`Ollama timeout after ${config.llmTimeoutMs}ms`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Ollama API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.message?.content || "{}";
+
+  const parsed = parseDecisionJson(content);
+  if (parsed.reason === "invalid_json") {
+    console.error("[Ollama] Bad JSON:", content.slice(0, 200));
+  }
+
+  if (payload.forceReply && !parsed.should_reply) {
+    console.warn("[Ollama] forceReply=true but model said no. Overriding.");
+    parsed.should_reply = true;
+  }
+
+  return {
+    result: parsed,
+    usage: {
+      promptTokens: data.prompt_eval_count || 0,
+      completionTokens: data.eval_count || 0,
+      totalTokens: (data.prompt_eval_count || 0) + (data.eval_count || 0)
+    }
+  };
+}
+
+module.exports = {
+  createGeminiDecision,
+  createOpenAiDecision,
+  createOllamaDecision
+};
