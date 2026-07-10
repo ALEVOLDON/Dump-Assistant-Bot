@@ -15,3 +15,6 @@ DEBUG.md
 # Agent logs and temporary files
 agent-tools/
 terminals/
+
+# Local launch scripts
+start.bat
