@@ -1,5 +1,7 @@
 # Dump Assistant Bot
 
+[English version](README.en.md) | [Русская версия](README.md)
+
 ![Node.js](https://img.shields.io/badge/Node.js-22+-green?logo=node.js)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)
 ![Gemini](https://img.shields.io/badge/Gemini-Recommended-blueviolet)
