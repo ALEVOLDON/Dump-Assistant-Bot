@@ -1,4 +1,4 @@
-const { writeState } = require("./state");
+const { writeState } = require("../core/state");
 
 const MAX_RELAY_TARGETS = 1000;
 
