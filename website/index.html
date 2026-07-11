@@ -10,8 +10,8 @@
 <body class="bg-background text-on-background font-body-lg">
 <!-- TopAppBar -->
 <header class="fixed top-0 w-full z-50 bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-xl shadow-sky-500/10">
-<div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
-<div class="text-xl font-bold text-white tracking-tighter font-headline-md flex items-center gap-2">
+<div class="flex justify-between items-center px-4 sm:px-6 py-4 max-w-7xl mx-auto">
+<div class="text-lg sm:text-xl font-bold text-white tracking-tighter font-headline-md flex items-center gap-1.5 sm:gap-2">
 <span class="material-symbols-outlined text-sky-500" data-icon="smart_toy">smart_toy</span>
                 Dump-Assistant-Bot
             </div>
@@ -20,12 +20,26 @@
 <a class="text-slate-400 hover:text-white transition-colors" href="#setup" data-i18n="nav_setup">Setup</a>
 <a class="text-slate-400 hover:text-white transition-colors" href="#commands" data-i18n="nav_commands">Commands</a>
 </nav>
-<div class="flex items-center gap-4">
-<button id="lang-toggle" class="text-slate-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-xl px-4 py-2 text-sm font-bold transition-all active:scale-95">RU</button>
-<a href="#setup" data-i18n="nav_add_to_telegram" class="bg-primary-container text-on-primary-container px-5 py-2 rounded-xl font-bold transition-all duration-300 active:scale-95 hover:bg-white/5 hover:text-sky-300">
+<div class="flex items-center gap-2 md:gap-4">
+<button id="lang-toggle" class="text-slate-400 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-xl px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-bold transition-all active:scale-95">RU</button>
+<a href="#setup" data-i18n="nav_add_to_telegram" class="hidden md:block bg-primary-container text-on-primary-container px-5 py-2 rounded-xl font-bold transition-all duration-300 active:scale-95 hover:bg-white/5 hover:text-sky-300">
                 Add to Telegram
             </a>
+<button id="menu-toggle" class="md:hidden text-slate-400 hover:text-white p-2 focus:outline-none flex items-center justify-center rounded-xl border border-white/10 hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-xl" id="menu-icon">menu</span>
+</button>
 </div>
+</div>
+<!-- Mobile Navigation Menu Drawer -->
+<div id="mobile-menu" class="hidden absolute top-full left-0 w-full bg-slate-950/95 backdrop-blur-lg border-b border-white/10 py-6 px-6 shadow-2xl flex flex-col gap-4 md:hidden">
+<nav class="flex flex-col gap-4 font-['Space_Grotesk'] text-base tracking-tight">
+<a class="mobile-nav-link text-slate-300 hover:text-sky-400 transition-colors py-2 border-b border-white/5" href="#features" data-i18n="nav_features">Features</a>
+<a class="mobile-nav-link text-slate-300 hover:text-sky-400 transition-colors py-2 border-b border-white/5" href="#setup" data-i18n="nav_setup">Setup</a>
+<a class="mobile-nav-link text-slate-300 hover:text-sky-400 transition-colors py-2 border-b border-white/5" href="#commands" data-i18n="nav_commands">Commands</a>
+<a href="#setup" id="mobile-add-to-telegram" data-i18n="nav_add_to_telegram" class="mobile-nav-link bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-center py-3 rounded-xl font-bold transition-all duration-300 active:scale-95 mt-2">
+                Add to Telegram
+            </a>
+</nav>
 </div>
 </header>
 <main class="pt-24">
@@ -79,7 +93,7 @@
 <h2 class="text-headline-lg text-white mb-4" data-i18n="features_title">Hyper-Competent Automation</h2>
 <p class="text-on-surface-variant max-w-2xl mx-auto" data-i18n="features_desc">Designed for community managers who need fast cloud AI by default, with OpenAI-compatible and local options when they need them.</p>
 </div>
-<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
 <!-- Cloud AI -->
 <div class="glass-panel p-8 rounded-2xl hover:bg-surface-variant transition-colors group">
 <span class="material-symbols-outlined text-tertiary text-3xl mb-4 block" data-icon="database">database</span>
