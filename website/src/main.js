@@ -214,4 +214,25 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // Back to Top Button Handler
+  const backToTopBtn = document.getElementById('back-to-top');
+  if (backToTopBtn) {
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        backToTopBtn.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+        backToTopBtn.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      } else {
+        backToTopBtn.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+        backToTopBtn.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      }
+    });
+
+    backToTopBtn.addEventListener('click', () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+  }
 });
