@@ -115,17 +115,32 @@ bot.start({
     logger.info(`  Posts cached: ${Object.keys(posts.cache).length}`);
     
     try {
-      await bot.api.setMyCommands([
+      // Удаляем глобальные команды для всех пользователей
+      await bot.api.deleteMyCommands({ scope: { type: "default" } });
+      logger.info("✓ Глобальный список команд Telegram очищен");
+
+      const adminCommands = [
         { command: "status", description: "Показать текущий статус и настройки бота" },
         { command: "on", description: "Включить автоответы" },
         { command: "off", description: "Выключить автоответы" },
         { command: "ephemeral", description: "Вкл/выкл приватные ответы в группе" },
         { command: "usage", description: "Показать детализированную статистику токенов" },
         { command: "chatid", description: "Показать ID чата и треда" }
-      ]);
-      logger.info("✓ Список команд Telegram успешно обновлен");
+      ];
+
+      // Устанавливаем команды персонально для каждого владельца в его ЛС с ботом
+      for (const ownerId of config.ownerUserIds) {
+        try {
+          await bot.api.setMyCommands(adminCommands, {
+            scope: { type: "chat", chat_id: ownerId }
+          });
+          logger.info(`✓ Список команд Telegram установлен для владельца ${ownerId}`);
+        } catch (error) {
+          logger.error(`❌ Ошибка при установке команд для владельца ${ownerId}:`, error);
+        }
+      }
     } catch (error) {
-      logger.error("❌ Ошибка при установке команд Telegram:", error);
+      logger.error("❌ Ошибка при настройке команд Telegram:", error);
     }
     
     // Запуск HTTP API-сервера
