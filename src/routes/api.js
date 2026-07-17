@@ -22,6 +22,11 @@ function createApiRouter({ config, state, posts, bot }) {
       autoReplyEnabled: state.autoReplyEnabled,
       llmProvider: config.llmProvider,
       activeLlmModel: config.activeLlmModel,
+      models: {
+        gemini: config.geminiModel,
+        openai: config.openAiModel,
+        ollama: config.ollamaModel
+      },
       maxReplyChars: config.maxReplyChars,
       threadCooldownMs: config.threadCooldownMs,
       usage: state.usage,

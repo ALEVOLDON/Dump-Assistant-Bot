@@ -17,6 +17,12 @@ if (tg) {
 // ── API ───────────────────────────────────────────────────────────
 const API_BASE = '/api';
 
+let providerModels = {
+  gemini: 'gemini-3.5-flash',
+  openai: 'gpt-4o-mini',
+  ollama: 'qwen2.5:3b-instruct'
+};
+
 async function apiRequest(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = {
@@ -137,6 +143,10 @@ async function loadStatus() {
     elToggleAutoReply.checked = Boolean(data.autoReplyEnabled);
     elSelectProvider.value    = data.llmProvider || 'gemini';
     elInputModel.value        = data.activeLlmModel || '';
+
+    if (data.models) {
+      providerModels = data.models;
+    }
     elInputMaxChars.value     = data.maxReplyChars || '';
     elInputCooldown.value     = data.threadCooldownMs ? Math.round(data.threadCooldownMs / 1000) : '';
 
@@ -183,7 +193,10 @@ async function saveSettings() {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    if (res.ok) showToast('Настройки сохранены!', 'success');
+    if (res.ok) {
+      showToast('Настройки сохранены!', 'success');
+      providerModels[elSelectProvider.value] = elInputModel.value.trim();
+    }
   } finally {
     setLoading(elBtnSaveSettings, false, 'Сохранить настройки', 'save');
   }
@@ -338,6 +351,10 @@ function setLoading(btn, isLoading, label, iconName) {
 elNavDashboard.addEventListener('click', () => switchTab('dashboard'));
 elNavComposer.addEventListener('click',  () => switchTab('composer'));
 elBtnSaveSettings.addEventListener('click', saveSettings);
+elSelectProvider.addEventListener('change', () => {
+  const selectedProvider = elSelectProvider.value;
+  elInputModel.value = providerModels[selectedProvider] || '';
+});
 elBtnGenerateLink.addEventListener('click', generatePostFromLink);
 elBtnReformat.addEventListener('click', reformatPost);
 elBtnPreview.addEventListener('click', () => renderPreview(elTextareaPost.value));
