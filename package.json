@@ -1,6 +1,6 @@
 {
   "name": "telegram-channel-assistant",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Simple Telegram assistant for channel discussion comments",
   "main": "src/index.js",
