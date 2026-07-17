@@ -285,7 +285,12 @@ function markdownToHtml(md) {
   html = html.replace(/\*([^*]+)\*/g, '<i>$1</i>');
   html = html.replace(/_([^_]+)_/g, '<i>$1</i>');
   html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);border-radius:4px;padding:1px 5px;font-size:13px;">$1</code>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#7dd3fc;text-decoration:underline;">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+    const trimmedUrl = url.trim().toLowerCase();
+    const isSafe = trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+    const href = isSafe ? url : '#';
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#7dd3fc;text-decoration:underline;">${text}</a>`;
+  });
   html = html.replace(/^[*-]\s+(.+)$/gm, '• $1');
 
   return html;

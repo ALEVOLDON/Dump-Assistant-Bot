@@ -3,6 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { logger } = require("../core/logger");
 const { deployWebsiteFile } = require("./siteDeploy");
+const { downloadSafeBinary } = require("./fetcher");
 
 const EXTENSION_BY_MEDIA_TYPE = {
   photo: ".jpg",
@@ -81,12 +82,7 @@ async function hostWebMediaForPost(config, webUrl, mediaType, fileName) {
     throw new Error("Media storage is not configured (MEDIA_STORAGE_DIR / MEDIA_PUBLIC_BASE_URL)");
   }
 
-  const response = await fetch(webUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download web media: ${response.statusText}`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const buffer = await downloadSafeBinary(webUrl, config.urlFetchTimeoutMs || 8000);
 
   const { absolutePath, relativePath } = await saveMediaBuffer(config, buffer, mediaType, fileName);
   const publicUrl = buildPublicMediaUrl(config, relativePath);

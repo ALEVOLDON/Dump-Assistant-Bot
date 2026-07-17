@@ -7,7 +7,9 @@ const createApiRouter = require("../routes/api");
 function startServer({ config, state, posts, bot }) {
   const app = express();
 
-  app.use(cors());
+  if (process.env.NODE_ENV !== "production") {
+    app.use(cors());
+  }
   app.use(express.json());
 
   // Логирование всех запросов для отладки

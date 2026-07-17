@@ -28,6 +28,13 @@ const state = readState(config.statePath);
 if (state.llmProvider) {
   config.llmProvider = state.llmProvider;
   config.activeLlmModel = state.activeLlmModel;
+  if (config.llmProvider === "gemini") {
+    config.geminiModel = config.activeLlmModel;
+  } else if (config.llmProvider === "openai") {
+    config.openAiModel = config.activeLlmModel;
+  } else if (config.llmProvider === "ollama") {
+    config.ollamaModel = config.activeLlmModel;
+  }
 }
 if (state.maxReplyChars !== undefined) {
   config.maxReplyChars = state.maxReplyChars;

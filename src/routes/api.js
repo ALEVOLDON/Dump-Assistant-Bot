@@ -55,6 +55,12 @@ function createApiRouter({ config, state, posts, bot }) {
         if (!validProviders.has(llmProvider)) {
           return res.status(400).json({ error: "Invalid LLM provider" });
         }
+        if (llmProvider === "gemini" && !config.geminiApiKey) {
+          return res.status(400).json({ error: "Gemini API key is missing. Add GEMINI_API_KEY to your environment." });
+        }
+        if (llmProvider === "openai" && !config.openAiApiKey) {
+          return res.status(400).json({ error: "OpenAI API key is missing. Add OPENAI_API_KEY to your environment." });
+        }
         state.llmProvider = llmProvider;
         config.llmProvider = llmProvider;
       }
@@ -62,6 +68,13 @@ function createApiRouter({ config, state, posts, bot }) {
       if (activeLlmModel !== undefined) {
         state.activeLlmModel = activeLlmModel;
         config.activeLlmModel = activeLlmModel;
+        if (config.llmProvider === "gemini") {
+          config.geminiModel = activeLlmModel;
+        } else if (config.llmProvider === "openai") {
+          config.openAiModel = activeLlmModel;
+        } else if (config.llmProvider === "ollama") {
+          config.ollamaModel = activeLlmModel;
+        }
       }
 
       if (maxReplyChars !== undefined) {

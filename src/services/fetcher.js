@@ -390,12 +390,99 @@ async function fetchUrlContent(url, timeoutMs = FETCH_TIMEOUT_MS) {
   return meta ? meta.text : null;
 }
 
+/**
+ * Безопасно загрузить бинарный файл по URL (защита от SSRF, лимит размера, таймаут)
+ * @param {string} urlString
+ * @param {number} timeoutMs
+ * @param {number} maxBytes
+ * @returns {Promise<Buffer>}
+ */
+async function downloadSafeBinary(urlString, timeoutMs = FETCH_TIMEOUT_MS, maxBytes = MAX_RESPONSE_BYTES) {
+  if (!isSafeUrl(urlString)) {
+    throw new Error("Forbidden or unsafe URL");
+  }
+
+  const parsed = new URL(urlString);
+  const safeAddresses = await resolveSafeAddresses(parsed.hostname);
+  if (!safeAddresses.length) {
+    throw new Error("DNS resolution returned no safe IP addresses");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await new Promise((resolve, reject) => {
+      const client = parsed.protocol === "https:" ? https : http;
+      const selectedAddress = safeAddresses[0];
+
+      const request = client.request({
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        path: `${parsed.pathname}${parsed.search}`,
+        method: "GET",
+        signal: controller.signal,
+        lookup(_hostname, options, callback) {
+          const family = net.isIP(selectedAddress);
+          if (options?.all) {
+            callback(null, [{ address: selectedAddress, family }]);
+            return;
+          }
+          callback(null, selectedAddress, family);
+        },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }, (response) => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          request.destroy(new Error(`Server responded with status code ${response.statusCode}`));
+          return;
+        }
+
+        const contentLength = Number(response.headers["content-length"]);
+        if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+          request.destroy(new Error("Response content-length exceeds limit"));
+          return;
+        }
+
+        const chunks = [];
+        let size = 0;
+
+        response.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > maxBytes) {
+            request.destroy(new Error("Response size limit exceeded"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        response.on("end", () => {
+          resolve(Buffer.concat(chunks));
+        });
+      });
+
+      request.on("error", reject);
+      request.end();
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Download timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
   extractUrls,
   fetchUrlContent,
   fetchUrlMetadata,
   extractOgImage,
   isSafeUrl,
-  stripHtml
+  stripHtml,
+  downloadSafeBinary
 };
 
