@@ -3,6 +3,7 @@ const path = require("path");
 
 const DEFAULT_STATE = {
   autoReplyEnabled: true,
+  ephemeralRepliesEnabled: false,
   usage: {
     requests: 0,
     promptTokens: 0,

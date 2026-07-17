@@ -98,8 +98,9 @@ function createReplyHandler({ config, state, posts, promptText, bot, rememberMes
       return;
     }
 
-    await sendRichMessageWithFallback(ctx, replyText, message.message_id);
-    logger.info(`Reply sent thread=${getThreadKey(message)} force=${forceReply}`);
+    const receiverUserId = (state.ephemeralRepliesEnabled && message.chat.type !== "private") ? message.from?.id : null;
+    await sendRichMessageWithFallback(ctx, replyText, message.message_id, receiverUserId);
+    logger.info(`Reply sent thread=${getThreadKey(message)} force=${forceReply} ephemeral=${Boolean(receiverUserId)}`);
 
     const notifyOwnerId = config.ownerUserIds[0];
     if (notifyOwnerId && message.chat.type !== "private") {
@@ -110,7 +111,7 @@ function createReplyHandler({ config, state, posts, promptText, bot, rememberMes
       const chatTitle = message.chat.title || String(message.chat.id);
       const fromId = message.from?.id;
       const notifyText =
-        `🔔 <b>Ответил в группе</b> (${esc(chatTitle)})\n` +
+        `🔔 <b>Ответил в группе</b> (${esc(chatTitle)})${state.ephemeralRepliesEnabled ? " (приватно)" : ""}\n` +
         `👤 ${esc(authorName)} (ID: ${fromId}): ${esc(text.slice(0, 200))}\n` +
         `🤖 Бот: ${esc(replyText.slice(0, 200))}\n\n` +
         `↩️ <i>Ответьте на это сообщение чтобы написать пользователю в личку</i>`;

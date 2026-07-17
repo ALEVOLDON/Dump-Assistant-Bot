@@ -7,6 +7,7 @@ function registerCommands(bot, { config, state, posts }) {
     const u = state.usage;
     await ctx.reply([
       `auto_reply: ${state.autoReplyEnabled ? "on" : "off"}`,
+      `ephemeral_replies: ${state.ephemeralRepliesEnabled ? "on" : "off"}`,
       `provider: ${config.llmProvider}`,
       `model: ${config.activeLlmModel}`,
       `requests: ${u.requests}`,
@@ -27,6 +28,22 @@ function registerCommands(bot, { config, state, posts }) {
     state.autoReplyEnabled = false;
     writeState(config.statePath, state);
     await ctx.reply("Автоответы выключены.");
+  });
+
+  bot.command("ephemeral", async (ctx) => {
+    if (!isOwner(config, ctx.from.id)) return;
+    const arg = (ctx.message?.text || "").split(" ")[1];
+    if (arg === "on") {
+      state.ephemeralRepliesEnabled = true;
+      writeState(config.statePath, state);
+      await ctx.reply("Приватные ответы в группе включены.");
+    } else if (arg === "off") {
+      state.ephemeralRepliesEnabled = false;
+      writeState(config.statePath, state);
+      await ctx.reply("Приватные ответы в группе выключены.");
+    } else {
+      await ctx.reply(`Приватные ответы в группе: ${state.ephemeralRepliesEnabled ? "on" : "off"}\nИспользуйте '/ephemeral on' или '/ephemeral off' для изменения.`);
+    }
   });
 
   bot.command("usage", async (ctx) => {

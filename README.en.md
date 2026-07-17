@@ -14,7 +14,8 @@ By default, the project is configured to use the Gemini cloud model. OpenAI and 
 
 ## Features
 
-- **Native Formatting (Telegram Bot API 10.1+):** The bot supports sending Rich Messages (native tables, lists, LaTeX formulas) by converting Markdown to HTML using the `marked` library. It includes an automatic safety fallback to standard text messages for older Telegram clients.
+- **Native Formatting (Telegram Bot API 10.2+):** The bot supports sending Rich Messages (native tables, lists, LaTeX formulas) by converting Markdown to HTML using the `marked` library. It includes full support for native math rendering (`tg-math` and `tg-math-block`) and an automatic safety fallback to standard text messages for older Telegram clients.
+- **Ephemeral Replies in Groups:** The bot can reply to comments in group discussions with private (ephemeral) messages visible only to the specific user who asked. This prevents chat clutter in public comment threads.
 - **Cloud-first LLM:** Gemini API is the recommended mode, requiring no local model installation.
 - **OpenAI-compatible Mode:** Switch easily to OpenAI API or any compatible endpoint.
 - **Local Mode:** Ollama is preserved as an optional/legacy option for hosting on your own hardware.
@@ -23,7 +24,7 @@ By default, the project is configured to use the Gemini cloud model. OpenAI and 
 - **First Comment Mode:** Automatically leaves a brief comment under new channel posts.
 - **Post Publishing (via DM):** The owner can send `/post <Markdown text>` (with optional image) directly to the bot to publish beautiful Rich posts to the channel. Media files are saved to the Vercel site's `public/media` folder and served via a persistent URL.
 - **Publishing from Links:** Send any link to the bot's DM. It automatically downloads the page content, generates a structured post using AI, appends the source link, and publishes it. Alternatively, use `/postlink <url>`.
-- **Owner Commands:** `/post`, `/postlink`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
+- **Owner Commands:** `/post`, `/postlink`, `/ephemeral`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
 - **Anti-spam & Focus:** Only replies to direct mentions, questions, and helpful requests, ignoring noise.
 
 ## Quick Start
@@ -167,6 +168,7 @@ Ensures maximum privacy and works offline on your own machine.
 
 - `/post <text>` - Publish markdown post to channel (sent via DM to the bot, supports Markdown and attaching one image).
 - `/postlink <url>` - Generate and publish a post based on link content. Also works by sending a bare link without the command.
+- `/ephemeral <on/off>` - Enable or disable private (ephemeral) replies in groups. Shows current status if called without arguments.
 - `/chatid` - Show ID of the current chat and thread.
 - `/status` - Show active mode, model, and database stats.
 - `/usage` - Show detailed token and request usage statistics.

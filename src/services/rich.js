@@ -67,6 +67,31 @@ marked.use({
   breaks: true
 });
 
+function decodeHtmlEntities(str) {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function convertMathTags(html) {
+  // Replace block math $$ ... $$
+  html = html.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
+    return `<tg-math-block>${decodeHtmlEntities(formula.trim())}</tg-math-block>`;
+  });
+  // Replace block math \[ ... \]
+  html = html.replace(/\\\[(.*?)\\\]/gs, (match, formula) => {
+    return `<tg-math-block>${decodeHtmlEntities(formula.trim())}</tg-math-block>`;
+  });
+  // Replace inline math \( ... \)
+  html = html.replace(/\\\((.*?)\\\)/gs, (match, formula) => {
+    return `<tg-math>${decodeHtmlEntities(formula.trim())}</tg-math>`;
+  });
+  return html;
+}
+
 /**
  * Конвертирует входящий Markdown в HTML для Telegram Rich/Standard Messages,
  * учитывая особенности рендеринга нативных списков, таблиц и переносов строк.
@@ -79,6 +104,10 @@ function markdownToHtml(text, isRich = true) {
   if (!text) return "";
   currentIsRich = isRich;
   let html = marked.parse(text).trim();
+  
+  // Конвертируем формулы LaTeX в нативные теги Telegram
+  html = convertMathTags(html);
+
   // Заменяем теги <br> / <br /> на переносы строк \n, так как Telegram
   // не поддерживает теги <br> и игнорирует/вырезает их, в то время как \n
   // полноценно поддерживается для перевода строки.
@@ -95,13 +124,12 @@ function markdownToHtml(text, isRich = true) {
  * @param {string} text - текст ответа (Markdown)
  * @param {number} replyToMessageId - ID сообщения, на которое отвечаем (для треда)
  */
-async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
+async function sendRichMessageWithFallback(ctx, text, replyToMessageId, receiverUserId = null) {
   try {
     // Конвертируем Markdown в HTML с помощью единого хелпера
     const htmlContent = markdownToHtml(text);
     
-    // Вызов raw-метода через grammY
-    await ctx.api.raw.sendRichMessage({
+    const sendParams = {
       chat_id: ctx.chat.id,
       rich_message: {
         html: htmlContent
@@ -109,8 +137,15 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
       reply_parameters: {
         message_id: replyToMessageId
       }
-    });
-    console.log(`[RichMessage] Sent rich HTML message to chat ${ctx.chat.id}`);
+    };
+
+    if (receiverUserId) {
+      sendParams.receiver_user_id = receiverUserId;
+    }
+
+    // Вызов raw-метода через grammY
+    await ctx.api.raw.sendRichMessage(sendParams);
+    console.log(`[RichMessage] Sent rich HTML message to chat ${ctx.chat.id}${receiverUserId ? ` (ephemeral for user ${receiverUserId})` : ""}`);
   } catch (error) {
     console.warn(`[RichMessage] Failed to send sendRichMessage (${error.message}). Falling back to standard ctx.reply.`);
     
@@ -119,12 +154,18 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
       error.message.includes("reply")
     );
 
+    const extra = {};
+    if (receiverUserId) {
+      extra.receiver_user_id = receiverUserId;
+    }
+
     try {
       if (isReplyError) {
         // Если целевое сообщение не найдено (удалено), отправляем просто в чат без reply
-        await ctx.reply(text);
+        await ctx.reply(text, extra);
       } else {
         await ctx.reply(text, {
+          ...extra,
           reply_parameters: {
             message_id: replyToMessageId
           }
@@ -133,7 +174,7 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId) {
     } catch (fallbackError) {
       console.warn(`[RichMessage] Fallback failed (${fallbackError.message}). Trying to send message without reply.`);
       try {
-        await ctx.reply(text);
+        await ctx.reply(text, extra);
       } catch (finalError) {
         console.error(`[RichMessage] Final send failed: ${finalError.message}`);
         throw finalError;
