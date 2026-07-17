@@ -101,11 +101,25 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 bot.start({
-  onStart(botInfo) {
+  async onStart(botInfo) {
     logger.info(`✓ Bot started as @${botInfo.username}`);
     logger.info(`  Allowed chats: ${config.allowAllChats ? "all" : config.allowedChatIds.join(", ")}`);
     logger.info(`  LLM: ${config.llmProvider} / ${config.activeLlmModel}`);
     logger.info(`  Posts cached: ${Object.keys(posts.cache).length}`);
+    
+    try {
+      await bot.api.setMyCommands([
+        { command: "status", description: "Показать текущий статус и настройки бота" },
+        { command: "on", description: "Включить автоответы" },
+        { command: "off", description: "Выключить автоответы" },
+        { command: "ephemeral", description: "Вкл/выкл приватные ответы в группе" },
+        { command: "usage", description: "Показать детализированную статистику токенов" },
+        { command: "chatid", description: "Показать ID чата и треда" }
+      ]);
+      logger.info("✓ Список команд Telegram успешно обновлен");
+    } catch (error) {
+      logger.error("❌ Ошибка при установке команд Telegram:", error);
+    }
     
     // Запуск HTTP API-сервера
     startServer({ config, state, posts, bot });
