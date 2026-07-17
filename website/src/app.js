@@ -286,10 +286,18 @@ function markdownToHtml(md) {
   html = html.replace(/_([^_]+)_/g, '<i>$1</i>');
   html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);border-radius:4px;padding:1px 5px;font-size:13px;">$1</code>');
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-    const trimmedUrl = url.trim().toLowerCase();
-    const isSafe = trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
-    const href = isSafe ? url : '#';
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#7dd3fc;text-decoration:underline;">${text}</a>`;
+    const trimmedUrl = url.trim();
+    const lowerUrl = trimmedUrl.toLowerCase();
+    const isSafe = lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://');
+    if (!isSafe) {
+      return `<a href="#" target="_blank" rel="noopener noreferrer" style="color:#7dd3fc;text-decoration:underline;">${text}</a>`;
+    }
+    const escapedUrl = trimmedUrl
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" style="color:#7dd3fc;text-decoration:underline;">${text}</a>`;
   });
   html = html.replace(/^[*-]\s+(.+)$/gm, '• $1');
 
