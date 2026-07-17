@@ -71,7 +71,11 @@ async function hostMediaForPost(bot, config, { mediaFileId, mediaType, fileName 
   logger.info(`[Media] Saved ${mediaType} to ${absolutePath}`);
 
   if (config.mediaAutoDeploy && config.websiteRepoPath) {
-    await deployWebsiteFile(config, absolutePath);
+    try {
+      await deployWebsiteFile(config, absolutePath);
+    } catch (deployError) {
+      logger.error(`[Media] Auto-deploy failed (non-fatal): ${deployError.message}`);
+    }
   }
 
   return { publicUrl, relativePath, absolutePath };
@@ -90,7 +94,11 @@ async function hostWebMediaForPost(config, webUrl, mediaType, fileName) {
   logger.info(`[Media] Saved web media from ${webUrl} to ${absolutePath}`);
 
   if (config.mediaAutoDeploy && config.websiteRepoPath) {
-    await deployWebsiteFile(config, absolutePath);
+    try {
+      await deployWebsiteFile(config, absolutePath);
+    } catch (deployError) {
+      logger.error(`[Media] Auto-deploy failed (non-fatal): ${deployError.message}`);
+    }
   }
 
   return { publicUrl, relativePath, absolutePath };

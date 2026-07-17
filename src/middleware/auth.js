@@ -3,10 +3,9 @@ const { logger } = require("../core/logger");
 
 function createAuthMiddleware({ config }) {
   return function authMiddleware(req, res, next) {
-    // В режиме разработки разрешаем обход авторизации через флаг в .env (только не в production)
-    const isDevelopment = process.env.NODE_ENV !== "production";
-    if (isDevelopment && (process.env.BYPASS_INIT_DATA_AUTH === "true" || process.env.NODE_ENV === "development")) {
-      // Имитируем пользователя-владельца
+    // Разрешаем обход авторизации ТОЛЬКО при явном флаге BYPASS_INIT_DATA_AUTH=true и НЕ в production
+    if (process.env.NODE_ENV !== "production" && process.env.BYPASS_INIT_DATA_AUTH === "true") {
+      logger.warn("⚠️  ВНИМАНИЕ: Авторизация WebApp отключена через BYPASS_INIT_DATA_AUTH=true");
       req.user = { id: config.ownerUserIds[0] || 0, username: "dev_admin" };
       return next();
     }
@@ -35,7 +34,7 @@ function createAuthMiddleware({ config }) {
 
       // Расчет хэша по алгоритму Telegram
       const secretKey = crypto
-        .createHmac("sha256", "WebApps")
+        .createHmac("sha256", "WebAppData")
         .update(config.telegramBotToken)
         .digest();
 

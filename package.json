@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node src/index.js",
     "build-site": "npm run build --prefix website",
-    "check": "node --check src/index.js && node --check src/handlers/messages.js && node --check src/services/publishing.js",
+    "check": "node scripts/check.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {
