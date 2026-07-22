@@ -48,12 +48,6 @@ async function createGeminiDecision(config, payload) {
             }
           };
 
-          if (config.geminiModel.includes("2.5") || config.geminiModel.includes("3.")) {
-            genConfig.thinkingConfig = {
-              thinkingBudget: 0
-            };
-          }
-
           return {
             contents: [{
               parts: [{
