@@ -57,7 +57,7 @@ CHANNEL_CHAT_ID=-1001234567890
 
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 Where:
@@ -122,7 +122,7 @@ Run the [start.bat](start.bat) file in the root directory. It automatically open
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 LLM_TIMEOUT_MS=30000
 ```
@@ -167,7 +167,7 @@ Ensures maximum privacy and works offline on your own machine.
 
 1. In `.env`, change `LLM_PROVIDER=ollama` to `LLM_PROVIDER=gemini`.
 2. Add your `GEMINI_API_KEY`.
-3. Set `GEMINI_MODEL=gemini-3.6-flash`.
+3. Set `GEMINI_MODEL=gemini-3.5-flash-lite`.
 4. Reduce `LLM_TIMEOUT_MS` to `30000` (from `120000`).
 5. Restart the bot.
 

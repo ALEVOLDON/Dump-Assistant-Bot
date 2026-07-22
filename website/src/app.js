@@ -18,14 +18,15 @@ if (tg) {
 const API_BASE = '/api';
 
 let providerModels = {
-  gemini: 'gemini-3.6-flash',
+  gemini: 'gemini-3.5-flash-lite',
   openai: 'gpt-4o-mini',
   ollama: 'qwen2.5:3b-instruct'
 };
 
 const MODEL_PRESETS = {
   gemini: [
-    { value: 'gemini-3.6-flash', label: 'gemini-3.6-flash (Рекомендовано)' },
+    { value: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Рекомендовано / Экономичная)' },
+    { value: 'gemini-3.6-flash', label: 'gemini-3.6-flash' },
     { value: 'gemini-3.5-pro', label: 'gemini-3.5-pro (Высокая точность)' },
     { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
     { value: '__custom__', label: '✏️ Свой вариант...' }

@@ -42,7 +42,7 @@ module.exports = {
   llmProvider,
   // Gemini API
   geminiApiKey: process.env.GEMINI_API_KEY || "",
-  geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
   geminiBaseUrl: (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, ""),
   // OpenAI API
   openAiApiKey: process.env.OPENAI_API_KEY || "",
