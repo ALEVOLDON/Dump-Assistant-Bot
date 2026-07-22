@@ -18,10 +18,82 @@ if (tg) {
 const API_BASE = '/api';
 
 let providerModels = {
-  gemini: 'gemini-3.5-flash',
+  gemini: 'gemini-3.6-flash',
   openai: 'gpt-4o-mini',
   ollama: 'qwen2.5:3b-instruct'
 };
+
+const MODEL_PRESETS = {
+  gemini: [
+    { value: 'gemini-3.6-flash', label: 'gemini-3.6-flash (Рекомендовано)' },
+    { value: 'gemini-3.5-pro', label: 'gemini-3.5-pro (Высокая точность)' },
+    { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
+    { value: '__custom__', label: '✏️ Свой вариант...' }
+  ],
+  openai: [
+    { value: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI Быстрая)' },
+    { value: 'gpt-4o', label: 'gpt-4o (OpenAI Флагман)' },
+    { value: 'o3-mini', label: 'o3-mini (OpenAI Рассуждения)' },
+    { value: 'grok-3-mini', label: 'grok-3-mini (xAI Grok Mini)' },
+    { value: 'grok-3', label: 'grok-3 (xAI Grok Flagship)' },
+    { value: 'deepseek/deepseek-r1:free', label: 'deepseek/deepseek-r1:free (OpenRouter Free R1)' },
+    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'meta-llama/llama-3.3-70b-instruct:free (OpenRouter Llama 3.3)' },
+    { value: '__custom__', label: '✏️ Свой вариант...' }
+  ],
+  ollama: [
+    { value: 'qwen2.5:3b-instruct', label: 'qwen2.5:3b-instruct (Стандарт)' },
+    { value: 'qwen2.5:7b-instruct', label: 'qwen2.5:7b-instruct' },
+    { value: 'llama3.2:3b', label: 'llama3.2:3b' },
+    { value: 'deepseek-r1:1.5b', label: 'deepseek-r1:1.5b (Локальный R1)' },
+    { value: '__custom__', label: '✏️ Свой вариант...' }
+  ]
+};
+
+function renderModelDropdown(provider, currentModelValue) {
+  if (!elSelectModel) return;
+  elSelectModel.innerHTML = '';
+
+  const presets = MODEL_PRESETS[provider] || [];
+  let isPreset = false;
+
+  presets.forEach((item) => {
+    const opt = document.createElement('option');
+    opt.value = item.value;
+    opt.textContent = item.label;
+    elSelectModel.appendChild(opt);
+    if (item.value === currentModelValue) {
+      isPreset = true;
+    }
+  });
+
+  if (isPreset) {
+    elSelectModel.value = currentModelValue;
+    if (elInputModelCustom) {
+      elInputModelCustom.style.display = 'none';
+      elInputModelCustom.value = '';
+    }
+  } else if (currentModelValue) {
+    elSelectModel.value = '__custom__';
+    if (elInputModelCustom) {
+      elInputModelCustom.style.display = 'block';
+      elInputModelCustom.value = currentModelValue;
+    }
+  } else {
+    elSelectModel.value = presets[0]?.value || '';
+    if (elInputModelCustom) {
+      elInputModelCustom.style.display = 'none';
+      elInputModelCustom.value = '';
+    }
+  }
+}
+
+function getActiveModelValue() {
+  if (!elSelectModel) return '';
+  if (elSelectModel.value === '__custom__') {
+    return elInputModelCustom ? elInputModelCustom.value.trim() : '';
+  }
+  return elSelectModel.value;
+}
 
 async function apiRequest(path, options = {}) {
   const url = `${API_BASE}${path}`;
@@ -54,7 +126,8 @@ const elStatTokensUnit = document.getElementById('stat-tokens-unit');
 
 const elToggleAutoReply = document.getElementById('toggle-autoreply');
 const elSelectProvider  = document.getElementById('select-provider');
-const elInputModel      = document.getElementById('input-model');
+const elSelectModel     = document.getElementById('select-model');
+const elInputModelCustom= document.getElementById('input-model-custom');
 const elInputMaxChars   = document.getElementById('input-max-chars');
 const elInputCooldown   = document.getElementById('input-cooldown');
 const elBtnSaveSettings = document.getElementById('btn-save-settings');
@@ -142,11 +215,13 @@ async function loadStatus() {
     // Settings form
     elToggleAutoReply.checked = Boolean(data.autoReplyEnabled);
     elSelectProvider.value    = data.llmProvider || 'gemini';
-    elInputModel.value        = data.activeLlmModel || '';
 
     if (data.models) {
       providerModels = data.models;
     }
+    const currentModel = data.activeLlmModel || providerModels[elSelectProvider.value];
+    renderModelDropdown(elSelectProvider.value, currentModel);
+
     elInputMaxChars.value     = data.maxReplyChars || '';
     elInputCooldown.value     = data.threadCooldownMs ? Math.round(data.threadCooldownMs / 1000) : '';
 
@@ -178,10 +253,11 @@ async function loadStatus() {
 
 // ── Save settings ─────────────────────────────────────────────────
 async function saveSettings() {
+  const modelVal = getActiveModelValue();
   const payload = {
     autoReplyEnabled: elToggleAutoReply.checked,
     llmProvider:      elSelectProvider.value,
-    activeLlmModel:   elInputModel.value.trim(),
+    activeLlmModel:   modelVal,
     maxReplyChars:    Number(elInputMaxChars.value),
     threadCooldownMs: Number(elInputCooldown.value) * 1000
   };
@@ -195,7 +271,7 @@ async function saveSettings() {
     });
     if (res.ok) {
       showToast('Настройки сохранены!', 'success');
-      providerModels[elSelectProvider.value] = elInputModel.value.trim();
+      providerModels[elSelectProvider.value] = modelVal;
     }
   } finally {
     setLoading(elBtnSaveSettings, false, 'Сохранить настройки', 'save');
@@ -353,8 +429,24 @@ elNavComposer.addEventListener('click',  () => switchTab('composer'));
 elBtnSaveSettings.addEventListener('click', saveSettings);
 elSelectProvider.addEventListener('change', () => {
   const selectedProvider = elSelectProvider.value;
-  elInputModel.value = providerModels[selectedProvider] || '';
+  const targetModel = providerModels[selectedProvider] || '';
+  renderModelDropdown(selectedProvider, targetModel);
 });
+
+if (elSelectModel) {
+  elSelectModel.addEventListener('change', () => {
+    if (elSelectModel.value === '__custom__') {
+      if (elInputModelCustom) {
+        elInputModelCustom.style.display = 'block';
+        elInputModelCustom.focus();
+      }
+    } else {
+      if (elInputModelCustom) {
+        elInputModelCustom.style.display = 'none';
+      }
+    }
+  });
+}
 elBtnGenerateLink.addEventListener('click', generatePostFromLink);
 elBtnReformat.addEventListener('click', reformatPost);
 elBtnPreview.addEventListener('click', () => renderPreview(elTextareaPost.value));

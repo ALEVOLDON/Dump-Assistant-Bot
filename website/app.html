@@ -592,14 +592,15 @@
             <label class="field-label" for="select-provider">Провайдер</label>
             <select class="field-select" id="select-provider">
               <option value="gemini">🟣 Google Gemini</option>
-              <option value="openai">🟢 OpenAI (GPT)</option>
+              <option value="openai">🟢 OpenAI / Grok / OpenRouter</option>
               <option value="ollama">🔵 Ollama (локально)</option>
             </select>
           </div>
 
           <div class="field-group">
-            <label class="field-label" for="input-model">Модель</label>
-            <input class="field-input" id="input-model" type="text" placeholder="gemini-1.5-flash" spellcheck="false"/>
+            <label class="field-label" for="select-model">Модель</label>
+            <select class="field-select" id="select-model"></select>
+            <input class="field-input" id="input-model-custom" type="text" placeholder="Введите название модели..." spellcheck="false" style="display: none; margin-top: 8px;"/>
           </div>
 
           <div class="field-grid field-group">
