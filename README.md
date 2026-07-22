@@ -57,7 +57,7 @@ CHANNEL_CHAT_ID=-1001234567890
 
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Где:
@@ -122,7 +122,7 @@ npm start
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.6-flash
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 LLM_TIMEOUT_MS=30000
 ```
@@ -164,7 +164,7 @@ LLM_TIMEOUT_MS=120000
 
 1. В `.env` замените `LLM_PROVIDER=ollama` на `LLM_PROVIDER=gemini`.
 2. Добавьте `GEMINI_API_KEY`.
-3. Установите `GEMINI_MODEL=gemini-3.5-flash`.
+3. Установите `GEMINI_MODEL=gemini-3.6-flash`.
 4. Уменьшите `LLM_TIMEOUT_MS` до `30000`, если раньше стояло `120000`.
 5. Перезапустите бота.
 
