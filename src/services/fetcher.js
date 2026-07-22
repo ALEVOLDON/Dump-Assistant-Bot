@@ -7,6 +7,7 @@ const dns = require("dns");
 const http = require("http");
 const https = require("https");
 const net = require("net");
+const zlib = require("zlib");
 const { promisify } = require("util");
 const dnsLookup = promisify(dns.lookup);
 
@@ -171,6 +172,7 @@ function requestTextResponse(urlString, safeAddresses, signal) {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
         "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
       }
     }, (response) => {
@@ -187,11 +189,26 @@ function requestTextResponse(urlString, safeAddresses, signal) {
       });
 
       response.on("end", () => {
+        let buffer = Buffer.concat(chunks);
+        const encoding = (response.headers["content-encoding"] || "").toLowerCase();
+
+        try {
+          if (encoding === "gzip") {
+            buffer = zlib.gunzipSync(buffer);
+          } else if (encoding === "deflate") {
+            buffer = zlib.inflateSync(buffer);
+          } else if (encoding === "br") {
+            buffer = zlib.brotliDecompressSync(buffer);
+          }
+        } catch (decompressError) {
+          // Fallback to raw buffer if decompression fails
+        }
+
         resolve({
           ok: response.statusCode >= 200 && response.statusCode < 300,
           status: response.statusCode,
           headers: response.headers,
-          text: Buffer.concat(chunks).toString("utf8")
+          text: buffer.toString("utf8")
         });
       });
     });
