@@ -27,14 +27,32 @@ const state = readState(config.statePath);
 // Восстановление динамических настроек из состояния в конфиг
 if (state.llmProvider) {
   config.llmProvider = state.llmProvider;
-  config.activeLlmModel = state.activeLlmModel;
-  if (config.llmProvider === "gemini") {
-    config.geminiModel = config.activeLlmModel;
-  } else if (config.llmProvider === "openai") {
-    config.openAiModel = config.activeLlmModel;
-  } else if (config.llmProvider === "ollama") {
-    config.ollamaModel = config.activeLlmModel;
+}
+
+if (config.llmProvider === "gemini") {
+  if (process.env.GEMINI_MODEL) {
+    config.geminiModel = process.env.GEMINI_MODEL;
+  } else if (state.activeLlmModel) {
+    config.geminiModel = state.activeLlmModel;
   }
+  config.activeLlmModel = config.geminiModel;
+  state.activeLlmModel = config.geminiModel;
+} else if (config.llmProvider === "openai") {
+  if (process.env.OPENAI_MODEL) {
+    config.openAiModel = process.env.OPENAI_MODEL;
+  } else if (state.activeLlmModel) {
+    config.openAiModel = state.activeLlmModel;
+  }
+  config.activeLlmModel = config.openAiModel;
+  state.activeLlmModel = config.openAiModel;
+} else if (config.llmProvider === "ollama") {
+  if (process.env.OLLAMA_MODEL) {
+    config.ollamaModel = process.env.OLLAMA_MODEL;
+  } else if (state.activeLlmModel) {
+    config.ollamaModel = state.activeLlmModel;
+  }
+  config.activeLlmModel = config.ollamaModel;
+  state.activeLlmModel = config.ollamaModel;
 }
 if (state.maxReplyChars !== undefined) {
   config.maxReplyChars = state.maxReplyChars;
