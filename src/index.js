@@ -30,26 +30,26 @@ if (state.llmProvider) {
 }
 
 if (config.llmProvider === "gemini") {
-  if (process.env.GEMINI_MODEL) {
-    config.geminiModel = process.env.GEMINI_MODEL;
-  } else if (state.activeLlmModel) {
+  if (state.activeLlmModel) {
     config.geminiModel = state.activeLlmModel;
+  } else if (process.env.GEMINI_MODEL) {
+    config.geminiModel = process.env.GEMINI_MODEL;
   }
   config.activeLlmModel = config.geminiModel;
   state.activeLlmModel = config.geminiModel;
 } else if (config.llmProvider === "openai") {
-  if (process.env.OPENAI_MODEL) {
-    config.openAiModel = process.env.OPENAI_MODEL;
-  } else if (state.activeLlmModel) {
+  if (state.activeLlmModel) {
     config.openAiModel = state.activeLlmModel;
+  } else if (process.env.OPENAI_MODEL) {
+    config.openAiModel = process.env.OPENAI_MODEL;
   }
   config.activeLlmModel = config.openAiModel;
   state.activeLlmModel = config.openAiModel;
 } else if (config.llmProvider === "ollama") {
-  if (process.env.OLLAMA_MODEL) {
-    config.ollamaModel = process.env.OLLAMA_MODEL;
-  } else if (state.activeLlmModel) {
+  if (state.activeLlmModel) {
     config.ollamaModel = state.activeLlmModel;
+  } else if (process.env.OLLAMA_MODEL) {
+    config.ollamaModel = process.env.OLLAMA_MODEL;
   }
   config.activeLlmModel = config.ollamaModel;
   state.activeLlmModel = config.ollamaModel;
