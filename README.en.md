@@ -129,19 +129,24 @@ LLM_TIMEOUT_MS=30000
 
 Fast, requires no local hardware or GPU, supports Structured Outputs natively.
 
-### OpenAI or Compatible API
+### OpenAI or Compatible API (Grok, OpenRouter, etc.)
 
 ```env
 LLM_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-4o-mini  # Alternatives: gpt-4o, o3-mini, grok-3-mini, grok-3, deepseek/deepseek-r1:free
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_TIMEOUT_MS=30000
 ```
 
-Use this mode for OpenAI models or custom endpoints (e.g., OpenRouter, Grok/xAI).
+Supports any OpenAI `/chat/completions` compatible API endpoints:
+- **OpenAI:** `gpt-4o-mini` (fast), `gpt-4o` (flagship), `o3-mini` (reasoning).
+- **xAI Grok:** `grok-3-mini`, `grok-3` (set `OPENAI_BASE_URL=https://api.x.ai/v1`).
+- **OpenRouter:** `deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free` (set `OPENAI_BASE_URL=https://openrouter.ai/api/v1`).
 
 ### Local / Legacy Ollama
+
+Local mode preserved for users requiring total privacy or offline LLM execution.
 
 ```bash
 ollama pull qwen2.5:3b-instruct
@@ -149,7 +154,7 @@ ollama pull qwen2.5:3b-instruct
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5:3b-instruct
+OLLAMA_MODEL=qwen2.5:3b-instruct  # Alternatives: llama3.2:3b, deepseek-r1:1.5b
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_NUM_CTX=4096
 OLLAMA_NUM_PREDICT=200

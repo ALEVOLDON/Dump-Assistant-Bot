@@ -129,17 +129,20 @@ LLM_TIMEOUT_MS=30000
 
 Этот режим подходит для обычного запуска: не требует GPU, быстрее стартует и проще разворачивается на сервере.
 
-### OpenAI или совместимый API
+### OpenAI или совместимый API (Grok, OpenRouter и др.)
 
 ```env
 LLM_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-4o-mini  # Варианты: gpt-4o, o3-mini, grok-3-mini, grok-3, deepseek/deepseek-r1:free
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_TIMEOUT_MS=30000
 ```
 
-Используйте этот режим, если хотите OpenAI API или совместимый `/chat/completions` endpoint.
+Поддерживаются любые эндпоинты, совместимые со спецификацией OpenAI `/chat/completions`:
+- **OpenAI:** `gpt-4o-mini` (быстрая), `gpt-4o` (флагман), `o3-mini` (рассуждения).
+- **xAI Grok:** `grok-3-mini`, `grok-3` (укажите `OPENAI_BASE_URL=https://api.x.ai/v1`).
+- **OpenRouter:** `deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free` (укажите `OPENAI_BASE_URL=https://openrouter.ai/api/v1`).
 
 ### Local / Legacy Ollama
 
@@ -151,7 +154,7 @@ ollama pull qwen2.5:3b-instruct
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5:3b-instruct
+OLLAMA_MODEL=qwen2.5:3b-instruct  # Альтернативы: llama3.2:3b, deepseek-r1:1.5b
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_NUM_CTX=4096
 OLLAMA_NUM_PREDICT=200
