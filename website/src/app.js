@@ -6,12 +6,18 @@ function getTg() {
   return window.Telegram?.WebApp || null;
 }
 
+function getInitData() {
+  const tgNow = getTg();
+  return tgNow?.initData || '';
+}
+
 const tg = getTg();
-const initData = tg?.initData || '';
 
 if (tg) {
-  tg.ready();
-  tg.expand();
+  try {
+    tg.ready();
+    tg.expand();
+  } catch (e) {}
 }
 
 // ── API ───────────────────────────────────────────────────────────
@@ -100,7 +106,7 @@ async function apiRequest(path, options = {}) {
   const url = `${API_BASE}${path}`;
   const headers = {
     'Content-Type': 'application/json',
-    'X-Telegram-Init-Data': initData,
+    'X-Telegram-Init-Data': getInitData(),
     ...options.headers
   };
 
