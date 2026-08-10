@@ -10,6 +10,24 @@ describe("parseDecisionJson", () => {
     assert.equal(parsed.reply_text, "ok");
   });
 
+  it("unescapes literal \\n sequences into actual newline characters", () => {
+    const jsonStr = JSON.stringify({
+      should_reply: true,
+      reply_text: "Line 1\\n\\nLine 2\\nSource:\\nhttps://x.com",
+      reason: "Reason\\nLine"
+    });
+    const parsed = parseDecisionJson(jsonStr);
+    assert.equal(parsed.reply_text, "Line 1\n\nLine 2\nSource:\nhttps://x.com");
+    assert.equal(parsed.reason, "Reason\nLine");
+  });
+
+  it("strips markdown codeblock wrappers", () => {
+    const content = "```json\n{\"should_reply\":true,\"reply_text\":\"Hello\"}\n```";
+    const parsed = parseDecisionJson(content);
+    assert.equal(parsed.should_reply, true);
+    assert.equal(parsed.reply_text, "Hello");
+  });
+
   it("returns safe fallback for invalid json", () => {
     const parsed = parseDecisionJson("not json");
     assert.deepEqual(parsed, {
