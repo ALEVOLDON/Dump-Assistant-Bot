@@ -19,6 +19,7 @@
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "grammy": "^1.38.3",
-    "marked": "^18.0.5"
+    "marked": "^18.0.5",
+    "socks-proxy-agent": "^8.0.5"
   }
 }

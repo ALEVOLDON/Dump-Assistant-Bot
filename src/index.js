@@ -21,7 +21,23 @@ if (!fs.existsSync(config.dataDir)) {
 }
 
 const promptText = fs.readFileSync(config.promptPath, "utf8");
-const bot = new Bot(config.telegramBotToken);
+let botOptions = {};
+if (process.env.SOCKS_PROXY) {
+  try {
+    const { SocksProxyAgent } = require("socks-proxy-agent");
+    botOptions = {
+      client: {
+        baseFetchConfig: {
+          agent: new SocksProxyAgent(process.env.SOCKS_PROXY),
+        },
+      },
+    };
+  } catch (e) {
+    console.warn("socks-proxy-agent not available, proceeding without proxy");
+  }
+}
+
+const bot = new Bot(config.telegramBotToken, botOptions);
 const state = readState(config.statePath);
 
 // Восстановление динамических настроек из состояния в конфиг

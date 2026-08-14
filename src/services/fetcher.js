@@ -227,6 +227,46 @@ function isYoutubeUrl(urlString) {
   }
 }
 
+function isTwitterUrl(urlString) {
+  try {
+    const host = new URL(urlString).hostname.toLowerCase();
+    return host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com");
+  } catch {
+    return false;
+  }
+}
+
+async function fetchTwitterMetadata(urlString, signal) {
+  try {
+    const parsed = new URL(urlString);
+    const apiVxUrl = `https://api.vxtwitter.com${parsed.pathname}`;
+    const parsedVx = new URL(apiVxUrl);
+    const safeAddresses = await resolveSafeAddresses(parsedVx.hostname);
+    if (!safeAddresses.length) return null;
+
+    const response = await requestTextResponse(apiVxUrl, safeAddresses, signal);
+    if (!response.ok) return null;
+
+    const data = JSON.parse(response.text);
+    const lines = [];
+    if (data.user_name) lines.push(`АВТОР: ${data.user_name} (@${data.user_screen_name || ""})`);
+    if (data.text) lines.push(`ТЕКСТ:\n${data.text}`);
+    if (data.date) lines.push(`ДАТА: ${data.date}`);
+    if (data.likes !== undefined && data.retweets !== undefined) {
+      lines.push(`СТАТИСТИКА: ❤️ ${data.likes} | 🔄 ${data.retweets}`);
+    }
+
+    const mediaUrl = data.mediaURLs?.[0] || data.media_extended?.[0]?.url || null;
+
+    return {
+      text: lines.join("\n") || null,
+      ogImage: mediaUrl
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchYoutubeOembedMetadata(urlString, signal) {
   const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
   const parsed = new URL(oembedUrl);
@@ -342,6 +382,14 @@ async function fetchUrlMetadata(url, timeoutMs = FETCH_TIMEOUT_MS) {
       if (oembedMeta) {
         if (oembedMeta.text) oembedMeta.text = oembedMeta.text.slice(0, MAX_TEXT_LENGTH);
         return oembedMeta;
+      }
+    }
+
+    if (isTwitterUrl(url)) {
+      const twitterMeta = await fetchTwitterMetadata(url, controller.signal).catch(() => null);
+      if (twitterMeta) {
+        if (twitterMeta.text) twitterMeta.text = twitterMeta.text.slice(0, MAX_TEXT_LENGTH);
+        return twitterMeta;
       }
     }
 

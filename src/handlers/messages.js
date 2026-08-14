@@ -58,6 +58,7 @@ function registerMessageHandlers(bot, deps) {
             }
 
             if (url) {
+              logger.info(`🔗 Ссылка обнаружена: ${url} | Активная LLM: ${config.llmProvider.toUpperCase()} (${config.activeLlmModel})`);
               await handleLinkPost(ctx, bot, config, url);
             } else if (isPostLink) {
               await ctx.reply("❌ Пожалуйста, укажите корректную ссылку после команды.");
