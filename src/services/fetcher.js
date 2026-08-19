@@ -239,29 +239,78 @@ function isTwitterUrl(urlString) {
 async function fetchTwitterMetadata(urlString, signal) {
   try {
     const parsed = new URL(urlString);
-    const apiVxUrl = `https://api.vxtwitter.com${parsed.pathname}`;
-    const parsedVx = new URL(apiVxUrl);
-    const safeAddresses = await resolveSafeAddresses(parsedVx.hostname);
-    if (!safeAddresses.length) return null;
+    const pathname = parsed.pathname;
 
-    const response = await requestTextResponse(apiVxUrl, safeAddresses, signal);
-    if (!response.ok) return null;
+    // 1. Попытка через api.fxtwitter.com (быстрый, не блокируется)
+    try {
+      const fxUrl = `https://api.fxtwitter.com${pathname}`;
+      const parsedFx = new URL(fxUrl);
+      const safeAddresses = await resolveSafeAddresses(parsedFx.hostname);
+      if (safeAddresses.length > 0) {
+        const response = await requestTextResponse(fxUrl, safeAddresses, signal);
+        if (response.ok) {
+          const data = JSON.parse(response.text);
+          const tweet = data.tweet;
+          if (tweet) {
+            const lines = [];
+            const authorName = tweet.author?.name || "";
+            const screenName = tweet.author?.screen_name || "";
+            if (authorName || screenName) {
+              lines.push(`АВТОР: ${authorName} (@${screenName})`);
+            }
+            if (tweet.text) lines.push(`ТЕКСТ:\n${tweet.text}`);
+            if (tweet.created_at) lines.push(`ДАТА: ${tweet.created_at}`);
+            if (tweet.likes !== undefined && tweet.retweets !== undefined) {
+              lines.push(`СТАТИСТИКА: ❤️ ${tweet.likes} | 🔄 ${tweet.retweets}`);
+            }
 
-    const data = JSON.parse(response.text);
-    const lines = [];
-    if (data.user_name) lines.push(`АВТОР: ${data.user_name} (@${data.user_screen_name || ""})`);
-    if (data.text) lines.push(`ТЕКСТ:\n${data.text}`);
-    if (data.date) lines.push(`ДАТА: ${data.date}`);
-    if (data.likes !== undefined && data.retweets !== undefined) {
-      lines.push(`СТАТИСТИКА: ❤️ ${data.likes} | 🔄 ${data.retweets}`);
+            const mediaUrl =
+              tweet.media?.photos?.[0]?.url ||
+              tweet.media?.all?.[0]?.url ||
+              tweet.media?.videos?.[0]?.thumbnail_url ||
+              null;
+
+            return {
+              text: lines.join("\n") || null,
+              ogImage: mediaUrl
+            };
+          }
+        }
+      }
+    } catch {
+      // Игнорируем ошибку fxtwitter и пробуем fallback
     }
 
-    const mediaUrl = data.mediaURLs?.[0] || data.media_extended?.[0]?.url || null;
+    // 2. Фолбэк на api.vxtwitter.com
+    try {
+      const apiVxUrl = `https://api.vxtwitter.com${pathname}`;
+      const parsedVx = new URL(apiVxUrl);
+      const safeAddresses = await resolveSafeAddresses(parsedVx.hostname);
+      if (safeAddresses.length > 0) {
+        const response = await requestTextResponse(apiVxUrl, safeAddresses, signal);
+        if (response.ok) {
+          const data = JSON.parse(response.text);
+          const lines = [];
+          if (data.user_name) lines.push(`АВТОР: ${data.user_name} (@${data.user_screen_name || ""})`);
+          if (data.text) lines.push(`ТЕКСТ:\n${data.text}`);
+          if (data.date) lines.push(`ДАТА: ${data.date}`);
+          if (data.likes !== undefined && data.retweets !== undefined) {
+            lines.push(`СТАТИСТИКА: ❤️ ${data.likes} | 🔄 ${data.retweets}`);
+          }
 
-    return {
-      text: lines.join("\n") || null,
-      ogImage: mediaUrl
-    };
+          const mediaUrl = data.mediaURLs?.[0] || data.media_extended?.[0]?.url || null;
+
+          return {
+            text: lines.join("\n") || null,
+            ogImage: mediaUrl
+          };
+        }
+      }
+    } catch {
+      // Игнорируем
+    }
+
+    return null;
   } catch {
     return null;
   }
