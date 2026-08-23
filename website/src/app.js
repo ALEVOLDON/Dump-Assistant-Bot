@@ -301,6 +301,7 @@ async function generatePostFromLink() {
       elTextareaPost.value = res.generated;
       showToast('Пост сгенерирован!', 'success');
       renderPreview(res.generated);
+      loadStatus();
     }
   } finally {
     setLoading(elBtnGenerateLink, false, 'ИИ', 'wand-sparkles');
@@ -323,6 +324,7 @@ async function reformatPost() {
       elTextareaPost.value = res.reformatted;
       showToast('Отформатировано!', 'success');
       renderPreview(res.reformatted);
+      loadStatus();
     }
   } finally {
     setLoading(elBtnReformat, false, 'ИИ-стиль', 'wand-2');

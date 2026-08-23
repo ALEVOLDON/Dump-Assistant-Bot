@@ -5,6 +5,8 @@ const { markdownToHtml } = require("./rich");
 const { logger } = require("../core/logger");
 const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
 const { fetchUrlContent, fetchUrlMetadata } = require("./fetcher");
+const { scheduleStateWrite } = require("../core/state");
+const { storeUsage } = require("./reply");
 
 const FORMAT_SYSTEM_PROMPT = `Ты — профессиональный редактор Telegram-канала. Твоя задача — взять черновик поста от автора и сделать его разметку идеальной для публикации, строго сохраняя при этом оригинальный текст, структуру и стиль автора.
 
@@ -105,13 +107,18 @@ function extractMediaFromMessage(msg) {
   return { mediaFileId, mediaType, fileName, mimeType };
 }
 
-async function reformatPostWithLlm(config, postText) {
+async function reformatPostWithLlm(config, postText, state = null) {
   const formatResponse = await createAssistantDecision(config, {
     systemPrompt: FORMAT_SYSTEM_PROMPT,
     userPrompt: `<draft_to_format>\n${postText}\n</draft_to_format>`,
     forceReply: true,
     noSuffix: true
   });
+
+  if (state && formatResponse.usage) {
+    storeUsage(state, formatResponse.usage);
+    scheduleStateWrite(config.statePath, state);
+  }
 
   if (formatResponse.result.reply_text) {
     return formatResponse.result.reply_text.trim();
@@ -289,7 +296,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
   return { result, postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed };
 }
 
-async function handlePostCommand(ctx, bot, config, msg) {
+async function handlePostCommand(ctx, bot, config, msg, state = null) {
   const caption = msg.caption || "";
   const rawText = (msg.text || caption).trim();
   const isPostRaw = rawText.startsWith("/postraw") || rawText.startsWith("/post_raw");
@@ -312,7 +319,7 @@ async function handlePostCommand(ctx, bot, config, msg) {
     if (!isPostRaw) {
       logger.info("[Publishing] Reformatting raw draft with LLM to fit channel's style...");
       try {
-        postText = await reformatPostWithLlm(config, postText);
+        postText = await reformatPostWithLlm(config, postText, state);
         logger.info("[Publishing] Post successfully reformatted by LLM.");
       } catch (llmErr) {
         logger.error(`[Publishing] LLM reformatting failed: ${llmErr.message}`);
@@ -347,7 +354,7 @@ async function handlePostCommand(ctx, bot, config, msg) {
   return true;
 }
 
-async function generatePostFromLinkContent(config, url, content) {
+async function generatePostFromLinkContent(config, url, content, state = null) {
   const response = await createAssistantDecision(config, {
     systemPrompt: LINK_POST_SYSTEM_PROMPT,
     userPrompt: `<link_url>${url}</link_url>\n<link_content>\n${content}\n</link_content>`,
@@ -355,13 +362,18 @@ async function generatePostFromLinkContent(config, url, content) {
     noSuffix: true
   });
 
+  if (state && response.usage) {
+    storeUsage(state, response.usage);
+    scheduleStateWrite(config.statePath, state);
+  }
+
   if (response.result.reply_text) {
     return response.result.reply_text.trim();
   }
   throw new Error(`Модель не вернула текст для поста (reason: ${response.result.reason || "unknown"})`);
 }
 
-async function handleLinkPost(ctx, bot, config, url) {
+async function handleLinkPost(ctx, bot, config, url, state = null) {
   try {
     const statusMsg = await ctx.reply(`🔍 Загружаю содержимое ссылки: ${url}...`);
 
@@ -387,7 +399,7 @@ async function handleLinkPost(ctx, bot, config, url) {
       "✍️ Анализирую контент и генерирую пост с помощью ИИ..."
     );
 
-    const generatedText = await generatePostFromLinkContent(config, url, meta.text);
+    const generatedText = await generatePostFromLinkContent(config, url, meta.text, state);
     const postWithSource = generatedText;
 
     const customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;

@@ -127,7 +127,7 @@ function createApiRouter({ config, state, posts, bot }) {
 
     try {
       logger.info("[API] Reformatting draft via LLM...");
-      const reformatted = await reformatPostWithLlm(config, text);
+      const reformatted = await reformatPostWithLlm(config, text, state);
       res.json({ reformatted });
     } catch (err) {
       logger.error("[API] Reformat error:", err);
@@ -150,7 +150,7 @@ function createApiRouter({ config, state, posts, bot }) {
       }
 
       logger.info("[API] Generating post content from URL via LLM...");
-      const generated = await generatePostFromLinkContent(config, url, content);
+      const generated = await generatePostFromLinkContent(config, url, content, state);
       res.json({ generated });
     } catch (err) {
       logger.error("[API] Post generation error:", err);

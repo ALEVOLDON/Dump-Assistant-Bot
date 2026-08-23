@@ -145,5 +145,72 @@ describe("Publishing Commands and LLM Formatting", () => {
       show_above_text: true
     });
   });
+
+  it("accurately updates usage metrics and schedules state write when state is provided", async () => {
+    const originalFetch = globalThis.fetch;
+    const { reformatPostWithLlm } = require("../src/services/publishing");
+
+    globalThis.fetch = mock.fn(async (url, options) => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      should_reply: true,
+                      reply_text: "# 🚀 Formatted Draft",
+                      reason: "formatted"
+                    })
+                  }
+                ]
+              }
+            }
+          ],
+          usageMetadata: {
+            promptTokenCount: 150,
+            candidatesTokenCount: 50,
+            totalTokenCount: 200
+          }
+        })
+      };
+    });
+
+    const mockConfig = {
+      llmProvider: "gemini",
+      geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+      geminiModel: "gemini-2.5-flash",
+      geminiApiKey: "fake-key",
+      llmTimeoutMs: 5000,
+      statePath: "test/temp-state.json"
+    };
+
+    const mockState = {
+      usage: {
+        requests: 791,
+        promptTokens: 1000,
+        completionTokens: 500,
+        totalTokens: 1500
+      }
+    };
+
+    try {
+      const result = await reformatPostWithLlm(mockConfig, "Raw text", mockState);
+      assert.equal(result, "# 🚀 Formatted Draft");
+      assert.equal(mockState.usage.requests, 792);
+      assert.equal(mockState.usage.promptTokens, 1150);
+      assert.equal(mockState.usage.completionTokens, 550);
+      assert.equal(mockState.usage.totalTokens, 1700);
+    } finally {
+      globalThis.fetch = originalFetch;
+      const fs = require("fs");
+      if (fs.existsSync("test/temp-state.json")) {
+        fs.unlinkSync("test/temp-state.json");
+      }
+    }
+  });
 });
 

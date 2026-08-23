@@ -43,7 +43,7 @@ function registerMessageHandlers(bot, deps) {
             await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от бота.");
           }
         } else {
-          const handled = await handlePostCommand(ctx, bot, config, msg);
+          const handled = await handlePostCommand(ctx, bot, config, msg, state);
           if (!handled) {
             const isPostLink = text.startsWith("/postlink") || text.startsWith("/post_link");
             let url = "";
@@ -59,7 +59,7 @@ function registerMessageHandlers(bot, deps) {
 
             if (url) {
               logger.info(`🔗 Ссылка обнаружена: ${url} | Активная LLM: ${config.llmProvider.toUpperCase()} (${config.activeLlmModel})`);
-              await handleLinkPost(ctx, bot, config, url);
+              await handleLinkPost(ctx, bot, config, url, state);
             } else if (isPostLink) {
               await ctx.reply("❌ Пожалуйста, укажите корректную ссылку после команды.");
             } else {

@@ -1,19 +1,3 @@
-const dns = require("dns");
-const _origLookup = dns.lookup;
-dns.lookup = function(hostname, options, callback) {
-  if (typeof options === "function") {
-    callback = options;
-    options = {};
-  }
-  if (hostname === "api.telegram.org") {
-    const ip = "149.154.167.220";
-    if (options && options.all) {
-      return callback(null, [{ address: ip, family: 4 }]);
-    }
-    return callback(null, ip, 4);
-  }
-  return _origLookup(hostname, options, callback);
-};
 
 const fs = require("fs");
 const { Bot } = require("grammy");

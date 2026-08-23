@@ -2,6 +2,7 @@ const { createAssistantDecision } = require("../llm/llm");
 const { sendRichMessageWithFallback } = require("./rich");
 const { extractUrls, fetchUrlContent } = require("./fetcher");
 const { extractText } = require("../utils/message");
+const { scheduleStateWrite } = require("../core/state");
 const { logger } = require("../core/logger");
 
 const AUTO_COMMENT_SYSTEM_PROMPT = `Ты — умный и харизматичный ИИ-ассистент этого Telegram-канала.
@@ -74,6 +75,7 @@ function createAutoCommentHandler({ config, state, rememberMessage, trimReply, i
       });
 
       storeUsage(state, response.usage);
+      scheduleStateWrite(config.statePath, state);
       const replyText = trimReply(config, response.result.reply_text || "");
       if (replyText) {
         await sendRichMessageWithFallback(ctx, replyText, message.message_id);
