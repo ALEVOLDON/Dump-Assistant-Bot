@@ -1,6 +1,6 @@
 # Dump Assistant Bot
 
-[English version](README.en.md) | [Русская версия](README.md)
+[English version](README.md) | [Русская версия](README.ru.md)
 
 ![Node.js](https://img.shields.io/badge/Node.js-22+-green?logo=node.js)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)
@@ -8,44 +8,44 @@
 ![OpenAI](https://img.shields.io/badge/OpenAI-Compatible-purple?logo=openai)
 ![Ollama](https://img.shields.io/badge/Ollama-Optional-orange)
 
-Умный ИИ-ассистент для Telegram-канала и группы обсуждений. Бот читает посты, учитывает контекст треда, анализирует ссылки, отвечает на вопросы подписчиков и может оставлять первый комментарий под новым постом.
+A smart AI assistant for Telegram channels and discussion groups. The bot reads channel posts, tracks thread context, analyzes links, answers subscriber questions, and can automatically leave the first comment under new posts.
 
-По умолчанию проект настроен на облачную модель Gemini. OpenAI и локальная Ollama-модель остаются поддерживаемыми альтернативами.
+By default, the project is configured to use the Gemini cloud model. OpenAI and local Ollama models remain supported alternatives.
 
-## Возможности
+## Features
 
-- **Нативное форматирование (Telegram Bot API 10.2):** бот поддерживает отправку Rich Messages (нативные таблицы, списки, LaTeX-формулы) через конвертацию Markdown в HTML с помощью библиотеки `marked`. Реализована полноценная поддержка математического рендеринга (`tg-math` и `tg-math-block`) и авто-откат (fallback) для старых клиентов Telegram.
-- **Приватные ответы в группах (Ephemeral Replies):** бот умеет отвечать пользователям в комментариях группы приватными сообщениями (эфемерными), которые видны только автору вопроса и самому боту. Это помогает избежать захламления секции комментариев диалогами с ИИ.
-- **Cloud-first LLM:** рекомендуемый режим через Gemini API, без локальной установки модели.
-- **OpenAI-compatible режим:** можно переключиться на OpenAI API или совместимый endpoint.
-- **Локальный режим:** Ollama сохранена как optional/legacy-вариант для запуска на своем железе.
-- **Контекст постов:** бот кэширует новые посты канала и отвечает с учетом содержания публикации.
-- **Чтение ссылок:** если в посте или вопросе есть URL, бот загружает страницу и использует ее текст в ответе.
-- **Режим первого комментария:** бот может автоматически оставлять короткий комментарий под новым постом.
-- **Публикация постов (через ЛС):** владелец может отправлять боту в ЛС команду `/post <текст в формате Markdown>` (с опциональным прикреплением фото) для мгновенной публикации красивых Rich-постов в канал. Медиа сохраняется в `public/media` сайта на Vercel и публикуется по постоянному URL.
-- **Публикация постов из ссылок:** владелец может просто прислать ссылку (с опциональным фото/видео) в ЛС боту. Бот автоматически скачает содержимое страницы, сгенерирует интересный структурированный пост с помощью ИИ, прикрепит ссылку как источник и опубликует его. Также доступна явная команда `/postlink <url>`.
-- **Команды владельца:** `/post`, `/postlink`, `/ephemeral`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
-- **Фокус и антиспам:** отвечает только на вопросы, обращения и полезные запросы, игнорируя шум.
+- **Native Formatting (Telegram Bot API 10.2+):** The bot supports sending Rich Messages (native tables, lists, LaTeX formulas) by converting Markdown to HTML using the `marked` library. It includes full support for native math rendering (`tg-math` and `tg-math-block`) and an automatic safety fallback to standard text messages for older Telegram clients.
+- **Ephemeral Replies in Groups:** The bot can reply to comments in group discussions with private (ephemeral) messages visible only to the specific user who asked. This prevents chat clutter in public comment threads.
+- **Cloud-first LLM:** Gemini API is the recommended mode, requiring no local model installation.
+- **OpenAI-compatible Mode:** Switch easily to OpenAI API or any compatible endpoint.
+- **Local Mode:** Ollama is preserved as an optional/legacy option for hosting on your own hardware.
+- **Post Context Caching:** Caches new channel posts to answer questions with full context of the original publication.
+- **Link Reading:** If a post or query contains a URL, the bot downloads the page content and incorporates it into the LLM prompt.
+- **First Comment Mode:** Automatically leaves a brief comment under new channel posts.
+- **Post Publishing (via DM):** The owner can send `/post <Markdown text>` (with optional image) directly to the bot to publish beautiful Rich posts to the channel. Media files are saved to the Vercel site's `public/media` folder and served via a persistent URL.
+- **Publishing from Links:** Send any link to the bot's DM. It automatically downloads the page content, generates a structured post using AI, appends the source link, and publishes it. Alternatively, use `/postlink <url>`.
+- **Owner Commands:** `/post`, `/postlink`, `/ephemeral`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
+- **Anti-spam & Focus:** Only replies to direct mentions, questions, and helpful requests, ignoring noise.
 
-## Быстрый старт
+## Quick Start
 
-### 1. Установка
+### 1. Installation
 
-Нужен Node.js 22+.
+Requires Node.js 22+.
 
 ```bash
 npm install
 ```
 
-### 2. Настройка `.env`
+### 2. Configure `.env`
 
-Создайте локальный конфиг:
+Create a local configuration file:
 
 ```bash
 cp .env.example .env
 ```
 
-Заполните обязательные значения:
+Fill in the required fields:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
@@ -60,64 +60,64 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-Где:
+Where:
 
-- `TELEGRAM_BOT_TOKEN` - токен от [@BotFather](https://t.me/BotFather).
-- `BOT_USERNAME` - username бота без `@`.
-- `ALLOWED_CHAT_IDS` - ID разрешенных групп или каналов, через запятую.
-- `ALLOW_ALL_CHATS` - открытый режим для всех чатов. По умолчанию выключен.
-- `OWNER_USER_IDS` - Telegram ID владельцев, через запятую.
-- `CHANNEL_CHAT_ID` - ID канала для публикации через `/post` (начинается с `-100`).
-- `LLM_PROVIDER` - один из `gemini`, `openai`, `ollama`.
+- `TELEGRAM_BOT_TOKEN` - Token from [@BotFather](https://t.me/BotFather).
+- `BOT_USERNAME` - Bot username without the `@`.
+- `ALLOWED_CHAT_IDS` - Comma-separated list of allowed group or channel IDs.
+- `ALLOW_ALL_CHATS` - Open mode for all chats. Disabled by default.
+- `OWNER_USER_IDS` - Comma-separated list of Telegram IDs of bot owners.
+- `CHANNEL_CHAT_ID` - Channel ID for publishing posts via `/post` (starts with `-100`).
+- `LLM_PROVIDER` - One of: `gemini`, `openai`, `ollama`.
 
-### 3. Подключение Telegram
+### 3. Telegram Setup
 
-1. В `@BotFather` откройте `Bot Settings` -> `Group Privacy` и выключите privacy mode.
-2. Добавьте бота в группу обсуждений канала.
-3. Дайте боту права, нужные для чтения сообщений и отправки ответов.
-4. Запустите:
+1. In [@BotFather](https://t.me/BotFather), open `Bot Settings` -> `Group Privacy` and disable privacy mode.
+2. Add the bot to your channel's discussion group.
+3. Grant the bot permissions to read and send messages.
+4. Start the bot:
 
 ```bash
 npm start
 ```
 
-### 4. Панель управления (Admin Panel) и запуск на Windows
+### 4. Web App Admin Panel & Windows Startup
 
-У бота есть удобная веб-панель управления (Telegram Web App / Mini App), которая позволяет настраивать параметры ИИ, смотреть статистику использования токенов и создавать/публиковать посты во вкладке «Постинг».
+The bot includes an Express web server hosting a Telegram Mini App admin panel for adjusting AI settings, checking token usage, and publishing posts in the "Composer" tab.
 
-![Панель управления](assets/admin_panel.png)
+![Admin Panel](assets/admin_panel.png)
 
-#### Быстрый запуск на Windows в один клик:
-Запустите файл [start.bat](start.bat) в корневой папке проекта. Он автоматически откроет консоли и запустит:
-1. Локальный веб-сервер бота (`npm start` на порту `3001` или указанном в `PORT` в `.env`).
-2. Туннель `ngrok` на ваш выделенный домен (или бесплатный случайный домен).
+#### One-Click Launch on Windows:
+Run the [start.bat](start.bat) file in the root directory. It automatically opens separate command prompts and runs:
+1. The local bot server (`npm start` on port `3001` or as specified in `PORT`).
+2. An `ngrok` tunnel mapping your dev domain.
 
-#### Ручной запуск и настройка туннелирования:
-1. Установите [ngrok](https://ngrok.com) и добавьте ваш токен авторизации:
+#### Manual Launch & Tunnel Configuration:
+1. Install [ngrok](https://ngrok.com) and add your authtoken:
    ```bash
-   ngrok config add-authtoken <ВАШ_ТОКЕН>
+   ngrok config add-authtoken <YOUR_TOKEN>
    ```
-2. Запустите бота:
+2. Start the bot:
    ```bash
    npm start
    ```
-3. Запустите туннель для порта бота (по умолчанию `3001`):
+3. Open a tunnel for the bot's port (default: `3001`):
    ```bash
    ngrok http --domain=your-domain.ngrok-free.app 3001
    ```
-4. Скопируйте полученную ссылку и привяжите её в Telegram:
-   - Откройте [@BotFather](https://t.me/BotFather) -> `/mybots` -> выберите вашего бота -> **Bot Settings** -> **Menu Button** -> **Configure menu button**.
-   - Отправьте [@BotFather](https://t.me/BotFather) полученную ссылку, добавив в конец `/app` (например, `https://your-domain.ngrok-free.app/app`).
+4. Copy the public HTTPS URL and configure the menu button in Telegram:
+   - Open [@BotFather](https://t.me/BotFather) -> `/mybots` -> select your bot -> **Bot Settings** -> **Menu Button** -> **Configure menu button**.
+   - Send [@BotFather](https://t.me/BotFather) the URL appending `/app` (e.g., `https://your-domain.ngrok-free.app/app`).
 
 > [!TIP]
-> Чтобы войти в админку напрямую через обычный веб-браузер без Telegram-авторизации, добавьте в ваш файл `.env` параметр:
+> To access the admin panel directly via a regular web browser without Telegram authentication, add the following to your `.env`:
 > ```env
 > BYPASS_INIT_DATA_AUTH=true
 > ```
 
-## Провайдеры LLM
+## LLM Providers
 
-### Gemini, рекомендуемый режим
+### Gemini (Recommended)
 
 ```env
 LLM_PROVIDER=gemini
@@ -127,26 +127,26 @@ GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 LLM_TIMEOUT_MS=30000
 ```
 
-Этот режим подходит для обычного запуска: не требует GPU, быстрее стартует и проще разворачивается на сервере.
+Fast, requires no local hardware or GPU, supports Structured Outputs natively.
 
-### OpenAI или совместимый API (Grok, OpenRouter и др.)
+### OpenAI or Compatible API (Grok, OpenRouter, etc.)
 
 ```env
 LLM_PROVIDER=openai
 OPENAI_API_KEY=your_api_key
-OPENAI_MODEL=gpt-4o-mini  # Варианты: gpt-4o, o3-mini, grok-3-mini, grok-3, deepseek/deepseek-r1:free
+OPENAI_MODEL=gpt-4o-mini  # Alternatives: gpt-4o, o3-mini, grok-3-mini, grok-3, deepseek/deepseek-r1:free
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_TIMEOUT_MS=30000
 ```
 
-Поддерживаются любые эндпоинты, совместимые со спецификацией OpenAI `/chat/completions`:
-- **OpenAI:** `gpt-4o-mini` (быстрая), `gpt-4o` (флагман), `o3-mini` (рассуждения).
-- **xAI Grok:** `grok-3-mini`, `grok-3` (укажите `OPENAI_BASE_URL=https://api.x.ai/v1`).
-- **OpenRouter:** `deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free` (укажите `OPENAI_BASE_URL=https://openrouter.ai/api/v1`).
+Supports any OpenAI `/chat/completions` compatible API endpoints:
+- **OpenAI:** `gpt-4o-mini` (fast), `gpt-4o` (flagship), `o3-mini` (reasoning).
+- **xAI Grok:** `grok-3-mini`, `grok-3` (set `OPENAI_BASE_URL=https://api.x.ai/v1`).
+- **OpenRouter:** `deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free` (set `OPENAI_BASE_URL=https://openrouter.ai/api/v1`).
 
 ### Local / Legacy Ollama
 
-Локальный режим сохранен для тех, кому важны приватность и запуск без внешнего LLM API.
+Local mode preserved for users requiring total privacy or offline LLM execution.
 
 ```bash
 ollama pull qwen2.5:3b-instruct
@@ -154,93 +154,93 @@ ollama pull qwen2.5:3b-instruct
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5:3b-instruct  # Альтернативы: llama3.2:3b, deepseek-r1:1.5b
+OLLAMA_MODEL=qwen2.5:3b-instruct  # Alternatives: llama3.2:3b, deepseek-r1:1.5b
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_NUM_CTX=4096
 OLLAMA_NUM_PREDICT=200
 LLM_TIMEOUT_MS=120000
 ```
 
-Для Ollama нужен установленный локальный сервер Ollama. Качество и скорость зависят от модели и железа.
+Ensures maximum privacy and works offline on your own machine.
 
-## Миграция с Ollama на облако
+## Migration from Ollama to Cloud
 
-1. В `.env` замените `LLM_PROVIDER=ollama` на `LLM_PROVIDER=gemini`.
-2. Добавьте `GEMINI_API_KEY`.
-3. Установите `GEMINI_MODEL=gemini-3.5-flash-lite`.
-4. Уменьшите `LLM_TIMEOUT_MS` до `30000`, если раньше стояло `120000`.
-5. Перезапустите бота.
+1. In `.env`, change `LLM_PROVIDER=ollama` to `LLM_PROVIDER=gemini`.
+2. Add your `GEMINI_API_KEY`.
+3. Set `GEMINI_MODEL=gemini-3.5-flash-lite`.
+4. Reduce `LLM_TIMEOUT_MS` to `30000` (from `120000`).
+5. Restart the bot.
 
-Ollama-переменные можно оставить в `.env`: они не используются, пока `LLM_PROVIDER` не равен `ollama`.
+Ollama environment variables can be left in `.env`: they are ignored unless `LLM_PROVIDER` is set to `ollama`.
 
-## Команды
+## Commands
 
-- `/post <текст>` - опубликовать пост в канале (отправляется в ЛС боту, поддерживает Markdown и прикрепление одного фото).
-- `/postlink <url>` - автоматически сгенерировать и опубликовать пост по содержимому ссылки. Также работает, если просто отправить ссылку без команды.
-- `/ephemeral <on/off>` - включить или выключить режим приватных (эфемерных) ответов в группах. При вызове без параметров показывает текущий статус.
-- `/chatid` - показать ID текущего чата и треда.
-- `/status` - показать активный режим, модель и статистику.
-- `/usage` - показать счетчики запросов и токенов.
-- `/on` - включить автоответы.
-- `/off` - выключить автоответы.
+- `/post <text>` - Publish markdown post to channel (sent via DM to the bot, supports Markdown and attaching one image).
+- `/postlink <url>` - Generate and publish a post based on link content. Also works by sending a bare link without the command.
+- `/ephemeral <on/off>` - Enable or disable private (ephemeral) replies in groups. Shows current status if called without arguments.
+- `/chatid` - Show ID of the current chat and thread.
+- `/status` - Show active mode, model, and database stats.
+- `/usage` - Show detailed token and request usage statistics.
+- `/on` - Enable automatic replies.
+- `/off` - Disable automatic replies.
 
-Команды выполняются только для пользователей из `OWNER_USER_IDS`.
+Commands are restricted to user IDs defined in `OWNER_USER_IDS`.
 
-## Настройка поведения
+## Behavior Settings
 
-Основной промпт лежит в `prompts/assistant.md`. Через него можно изменить тон, стиль и правила ответа без правки кода.
+The core system prompt is located in `prompts/assistant.md`. You can adjust tone, style, and rules there without editing code.
 
-Дополнительные параметры:
+Additional environment variables:
 
-- `CHANNEL_ABOUT` - краткое описание канала для контекста.
-- `AUTO_REPLY_ENABLED` - включение автоответов при старте.
-- `MAX_REPLY_CHARS` - максимальная длина ответа.
-- `THREAD_COOLDOWN_MS` - пауза между ответами в одном треде.
-- `RECENT_MESSAGES_LIMIT` - сколько последних сообщений учитывать.
-- `URL_FETCH_TIMEOUT_MS` - таймаут загрузки страниц по ссылкам.
-- `WEBSITE_REPO_PATH` - путь к репозиторию сайта на Vercel (например `portfolio-clone`).
-- `MEDIA_PUBLIC_BASE_URL` - публичный URL медиа, например `https://alevoldon.com/media`.
-- `MEDIA_AUTO_DEPLOY` - автоматически коммитить и пушить новые медиа в репозиторий сайта (`true`/`false`).
-- `LOG_LEVEL` - уровень логов: `error`, `warn`, `info`, `debug`.
+- `CHANNEL_ABOUT` - Brief description of the channel for context.
+- `AUTO_REPLY_ENABLED` - Automatically enable replies on startup.
+- `MAX_REPLY_CHARS` - Maximum length of the generated reply.
+- `THREAD_COOLDOWN_MS` - Cooling period between replies in the same thread.
+- `RECENT_MESSAGES_LIMIT` - Number of previous messages loaded for context.
+- `URL_FETCH_TIMEOUT_MS` - Timeout for web scraping.
+- `WEBSITE_REPO_PATH` - Path to Vercel website folder (e.g., `portfolio-clone`).
+- `MEDIA_PUBLIC_BASE_URL` - Public URL for uploaded media (e.g., `https://alevoldon.com/media`).
+- `MEDIA_AUTO_DEPLOY` - Automatically commit and push media to Git (`true`/`false`).
+- `LOG_LEVEL` - Logging level: `error`, `warn`, `info`, `debug`.
 
-## Проверка
+## Verification
+
+Run lint check and tests:
 
 ```bash
 npm run check
 npm test
 ```
 
-Для сайта:
+For the website landing page:
 
 ```bash
 cd website
 npm run build
 ```
 
-## Деплой
+## Deployment
 
 ### Docker
 
 ```bash
 cp .env.example .env
-# заполните .env
+# fill in .env
 
 docker compose up -d --build
 ```
 
-Папка `data/` монтируется как volume — состояние бота и кэш постов сохраняются между перезапусками.
+The `data/` folder is mounted as a volume to persist state and post caches between restarts.
 
-### Без Docker
-
-На VPS с Node.js 22+:
+### Running on VPS
 
 ```bash
 npm ci --omit=dev
 npm start
 ```
 
-Для фонового запуска используйте `systemd`, `pm2` или аналог. При остановке бот сохраняет `data/state.json`.
+Use `pm2`, `systemd`, or similar tool for background daemon management. The bot saves state in `data/state.json` on exit.
 
-### CI
+### CI/CD
 
-В репозитории настроен GitHub Actions (`.github/workflows/ci.yml`): синтаксическая проверка, unit-тесты и сборка лендинга.
+The repository includes GitHub Actions (`.github/workflows/ci.yml`): syntax checks, unit tests, and landing page build verification.
