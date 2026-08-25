@@ -85,7 +85,7 @@ npm start
 
 The bot includes an Express web server hosting a Telegram Mini App admin panel for adjusting AI settings, checking token usage, and publishing posts in the "Composer" tab.
 
-![Admin Panel](assets/admin_panel.png)
+![Admin Panel](assets/admin_panel_en.jpg)
 
 #### One-Click Launch on Windows:
 Run the [start.bat](start.bat) file in the root directory. It automatically opens separate command prompts and runs:
