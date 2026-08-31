@@ -389,7 +389,7 @@ function buildArticleAnnouncement(meta, articleUrl) {
   if (teaser) {
     post += `${teaser}\n\n`;
   }
-  post += `👉 <a href="${articleUrl}">Читать полностью в Instant View ⚡️</a>\n\n${articleUrl}`;
+  post += `👉 <a href="${articleUrl}">Читать полностью в Instant View ⚡️</a>`;
   if (hashtags) {
     post += `\n\n${hashtags}`;
   }
