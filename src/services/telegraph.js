@@ -18,6 +18,31 @@ const TAG_MAPPING = {
   strike: "s"
 };
 
+const ENTITY_MAP = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&nbsp;": " ",
+  "&ndash;": "–",
+  "&mdash;": "—",
+  "&laquo;": "«",
+  "&raquo;": "»"
+};
+
+/**
+ * Декодирует HTML-сущности (&gt;, &lt;, &amp; и др.) в обычный текст для узлов Telegraph.
+ */
+function decodeHtmlEntities(str) {
+  if (!str || typeof str !== "string") return str;
+  return str
+    .replace(/&(?:amp|lt|gt|quot|apos|nbsp|ndash|mdash|laquo|raquo|#39);/gi, (m) => ENTITY_MAP[m.toLowerCase()] || m)
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 /**
  * Парсит строку атрибутов HTML в объект (например, href="...", src="...")
  */
@@ -30,7 +55,7 @@ function parseAttributes(attrString) {
     const key = match[1].toLowerCase();
     const value = match[2] ?? match[3] ?? match[4] ?? "";
     if (key === "href" || key === "src") {
-      attrs[key] = value;
+      attrs[key] = decodeHtmlEntities(value);
     }
   }
   return Object.keys(attrs).length > 0 ? attrs : undefined;
@@ -106,7 +131,7 @@ function htmlToTelegraphNodes(html) {
       }
     } else {
       // Текстовый узел
-      const text = token;
+      const text = decodeHtmlEntities(token);
       if (text.length > 0) {
         const currentParent = stack[stack.length - 1];
         if (!currentParent.children) currentParent.children = [];

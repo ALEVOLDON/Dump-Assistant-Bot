@@ -87,4 +87,13 @@ describe("Telegraph Service & Node Converter", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("decodes HTML entities like &gt;, &lt;, &amp;, &quot; in Telegraph text nodes", () => {
+    const html = "<p>Agent -&gt; Model Router -&gt; &laquo;AI&raquo; &amp; &lt;Code&gt;</p>";
+    const nodes = htmlToTelegraphNodes(html);
+
+    assert.equal(nodes.length, 1);
+    assert.equal(nodes[0].tag, "p");
+    assert.equal(nodes[0].children[0], "Agent -> Model Router -> «AI» & <Code>");
+  });
 });
