@@ -156,6 +156,8 @@ bot.start({
 
       const adminCommands = [
         { command: "status", description: "Показать текущий статус и настройки бота" },
+        { command: "post", description: "Опубликовать пост в канал" },
+        { command: "article", description: "Опубликовать статью на Telegraph (Instant View)" },
         { command: "on", description: "Включить автоответы" },
         { command: "off", description: "Выключить автоответы" },
         { command: "ephemeral", description: "Вкл/выкл приватные ответы в группе" },

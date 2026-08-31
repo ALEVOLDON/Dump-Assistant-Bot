@@ -7,6 +7,8 @@ const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = requ
 const { fetchUrlContent, fetchUrlMetadata } = require("./fetcher");
 const { scheduleStateWrite } = require("../core/state");
 const { storeUsage } = require("./reply");
+const { createTelegraphArticle } = require("./telegraph");
+const { generateCoverImage } = require("./imageGenerator");
 
 const FORMAT_SYSTEM_PROMPT = `Ты — профессиональный редактор Telegram-канала. Твоя задача — взять черновик поста от автора и сделать его разметку идеальной для публикации, строго сохраняя при этом оригинальный текст, структуру и стиль автора.
 
@@ -17,6 +19,7 @@ const FORMAT_SYSTEM_PROMPT = `Ты — профессиональный реда
 - Сохраняй исходный регистр букв автора (не пиши слова CAPS LOCK'ом, если их не было в оригинале, и сохраняй строчные/прописные буквы в списках ровно так, как написал автор).
 - Если в тексте перечисляются характеристики, параметры или структура в виде строк (например, "Компонент Характеристики CPU 72-ядерный NVIDIA Grace GPU Blackwell Ultra..."), объединяй их в красивую нативную Markdown-таблицу (со столбцами, выравниванием, разделителями).
 - Если в тексте есть списки (например, преимущества, причины, задачи), оформи их в виде аккуратного маркированного списка (каждый пункт списка строго на новой строке, начинай их с символа списка и эмодзи-маркера, например: "* 🔹 Текст пункта" или "* ✅ Текст пункта", но делай их строго одинаковыми для всех пунктов одного списка).
+- Если в посте есть объемные технические подробности, параметры, длинные цитаты или глубокие пояснения (более 4-5 строк), оформляй их в сворачиваемую цитату Telegram с помощью тега <blockquote expandable>...</blockquote> (или префикса **>), чтобы пост в ленте оставался компактным и разворачивался по клику.
 - В самом конце обязательно добавь хэштеги в одну строку через пробел, предварительно отделив их от основного текста пустой строкой (сделав визуальный отступ в виде пустой строки перед хэштегами, например: "#AI #NVIDIA #Blackwell"). Хэштеги не должны склеиваться с последним абзацем текста.
 - Сохраняй весь смысл, ссылки и детали исходного текста.
 - Обязательно возвращай итоговый текст в поле reply_text.
@@ -51,7 +54,7 @@ const LINK_POST_SYSTEM_PROMPT = `Ты — редактор и автор Telegra
 1. **Заголовок**: Начинай с главного заголовка первого уровня с иконкой (например, "# 🚀 Название проекта").
 2. **TL;DR**: Сразу под заголовком добавь выжимку в 1 предложение с эмодзи 📌 (например, "📌 **TL;DR:** Краткая суть новости в одно емкое предложение.").
 3. **Основная суть**: 2–3 аккуратных абзаца про то, что произошло, какие возможности открываются и кому это полезно.
-4. **Ключевые возможности**: Если есть характеристики, требования или фичи — оформляй их строгим маркированным списком с одинаковыми иконками (например, через "* 🔹 ").
+4. **Ключевые возможности**: Если есть характеристики, требования или фичи — оформляй их строгим маркированным списком с одинаковыми иконками (например, через "* 🔹 "). При большом объеме данных используй сворачиваемый блок <blockquote expandable>...</blockquote>.
 5. **Контекст и ценность (Цитата)**: Используй Telegram-цитату через "> " для пояснения практической пользы (например, "> 💡 **Почему это важно:** Разработчикам больше не нужно переключаться между разными CLI-утилитами.").
 6. **Источник**: В конце указывай ссылку, переданную в <link_url>, в виде красивой кликабельной гиперссылки, например:
 🔗 [Источник](<ссылка>)
@@ -74,6 +77,28 @@ const LINK_POST_SYSTEM_PROMPT = `Ты — редактор и автор Telegra
 - Ссылка на источник передается в XML-тегах <link_url>...</link_url>. Контент страницы передан в <link_content>...</link_content>.
 - В поле reply_text должен быть записан исключительно итоговый готовый пост, без каких-либо твоих приветствий, комментариев или фраз вида «Вот пост», «Ниже текст», «Конечно», «Вот вариант». Сразу начинай с заголовка.
 - Если тебе нужно объяснить свои действия, пиши это исключительно в поле reason. Поле reply_text должно содержать ТОЛЬКО готовый пост.`;
+
+const ARTICLE_SYSTEM_PROMPT = `Ты — профессиональный технический автор и редактор лонгридов для Telegram-канала.
+Твоя задача — взять черновик, конспект, сырой текст или заметку от автора и превратить его в полноценную, структурированную и увлекательную статью для Telegraph (Instant View).
+
+Правила структуры статьи:
+1. Заголовок первого уровня на первой строке: "# 🚀 Название статьи" (емкий, понятный, привлекательный).
+2. Сразу под заголовком добавь комментарий с промптом для генерации обложки на английском языке:
+<!-- image_prompt: A modern sleek 3D digital illustration representing the key topic, dark tech background, glowing neon accents, cinematic lighting, 8k, 16:9 -->
+3. Вводная часть / TL;DR: 1-2 абзаца с контекстом, почему эта тема важна и что узнает читатель.
+4. Логические разделы: разделяй блоки подзаголовками третьего уровня (например, "### 🔹 Архитектура решения", "### ⚙️ Практическое применение").
+5. Тело статьи: подробно и логично излагай суть, сохраняя все факты, аргументы и технические нюансы автора.
+6. Списки: оформляй важные пункты маркированными списками (* 🔹 ...).
+7. Код и команды: блоки кода оборачивай в тройные бэктики с указанием языка (\`\`\`javascript ... \`\`\`), а переменные/команды в одинарные бэктики (\`code\`).
+8. Цитаты и акценты: важные выводы или предостережения выделяй цитатами (> 💡 Важный нюанс: ...).
+9. Итоги: завершай статью разделом с выводами ("### 🎯 Итоги и выводы").
+10. Источники: если в тексте были ссылки, оформи их в конце ("### 🔗 Полезные ссылки").
+11. Теги (хештеги): в самом конце обязательно добавь 3-6 релевантных кликабельных хештегов в одну строку через пробел, отделив их от текста пустой строкой (например: "#AI #NeuralNetworks #Tech #OpenSource #DevTools").
+
+КРИТИЧЕСКИЕ ИНСТРУКЦИИ:
+- Исходный черновик передан в XML-тегах <draft_to_article>...</draft_to_article>.
+- В поле reply_text должен быть записан ИСКЛЮЧИТЕЛЬНО готовый Markdown статьи (начиная строго с # Заголовка), без твоих приветствий, комментариев или фраз вида "Вот готовая статья".
+- Пояснения действий пиши только в поле reason.`;
 
 function extractMediaFromMessage(msg) {
   let mediaFileId = null;
@@ -124,6 +149,25 @@ async function reformatPostWithLlm(config, postText, state = null) {
     return formatResponse.result.reply_text.trim();
   }
   throw new Error(`Модель не вернула текст (reason: ${formatResponse.result.reason || "unknown"})`);
+}
+
+async function generateArticleWithLlm(config, articleText, state = null) {
+  const response = await createAssistantDecision(config, {
+    systemPrompt: ARTICLE_SYSTEM_PROMPT,
+    userPrompt: `<draft_to_article>\n${articleText}\n</draft_to_article>`,
+    forceReply: true,
+    noSuffix: true
+  });
+
+  if (state && response.usage) {
+    storeUsage(state, response.usage);
+    scheduleStateWrite(config.statePath, state);
+  }
+
+  if (response.result.reply_text) {
+    return response.result.reply_text.trim();
+  }
+  throw new Error(`Модель не вернула текст статьи (reason: ${response.result.reason || "unknown"})`);
 }
 
 function buildMediaHtmlTag(mediaType, directUrl, fileName) {
@@ -296,12 +340,216 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
   return { result, postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed };
 }
 
+function extractArticleMetadata(markdown) {
+  const lines = markdown.split("\n").map((l) => l.trim()).filter(Boolean);
+  let title = "Статья";
+  let teaserLines = [];
+  let imagePrompt = "";
+  let hashtags = "";
+
+  // 1. Извлекаем image_prompt, если есть
+  const imgPromptMatch = markdown.match(/<!--\s*image_prompt:\s*([\s\S]*?)\s*-->/i);
+  if (imgPromptMatch && imgPromptMatch[1]) {
+    imagePrompt = imgPromptMatch[1].trim();
+  }
+
+  // 2. Извлекаем хештеги в конце
+  const tagsMatch = markdown.match(/(?:^|\n)((?:#[a-zA-Z0-9а-яА-ЯёЁ_]+\s*){1,10})\s*$/);
+  if (tagsMatch && tagsMatch[1]) {
+    hashtags = tagsMatch[1].trim();
+  }
+
+  // 3. Извлекаем заголовок и тизер
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("# ") && title === "Статья") {
+      title = line.replace(/^#\s*/, "").replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u, "").trim();
+      continue;
+    }
+    if (line.startsWith("<!--") || line.startsWith("#") || line.startsWith("<img") || line.startsWith("![")) {
+      continue;
+    }
+    if (teaserLines.join(" ").length < 280) {
+      if (!line.startsWith("#")) {
+        teaserLines.push(line);
+      }
+    }
+  }
+
+  const teaser = teaserLines.slice(0, 3).join("\n\n");
+  const cleanMarkdown = markdown.replace(/<!--\s*image_prompt:\s*[\s\S]*?-->/gi, "").trim();
+
+  return { title, teaser, imagePrompt, hashtags, cleanMarkdown };
+}
+
+function buildArticleAnnouncement(meta, articleUrl) {
+  const { title, teaser, hashtags } = meta;
+  const headline = title ? `📰 <b>${title}</b>` : "📰 <b>Новая статья</b>";
+  let post = `${headline}\n\n`;
+  if (teaser) {
+    post += `${teaser}\n\n`;
+  }
+  post += `👉 <a href="${articleUrl}">Читать полностью в Instant View ⚡️</a>\n\n${articleUrl}`;
+  if (hashtags) {
+    post += `\n\n${hashtags}`;
+  }
+  return { post, title };
+}
+
+async function createAndPublishArticle(bot, config, articleMarkdown, msg, state = null, onStatusUpdate = null) {
+  if (!config.channelChatId) {
+    throw new Error("CHANNEL_CHAT_ID не задан в .env");
+  }
+
+  const meta = extractArticleMetadata(articleMarkdown);
+  const htmlContent = markdownToHtml(meta.cleanMarkdown, true);
+
+  logger.info(`[Article] Creating Telegraph page: "${meta.title}"...`);
+  const telegraphResult = await createTelegraphArticle({
+    title: meta.title,
+    htmlContent,
+    authorName: config.channelUsername || "Dump Assistant",
+    authorUrl: config.channelUsername ? `https://t.me/${config.channelUsername.replace("@", "")}` : "",
+    config,
+    state
+  });
+
+  const articleUrl = telegraphResult.url;
+  logger.info(`[Article] Telegraph page created: ${articleUrl}`);
+
+  const { post: announcementText } = buildArticleAnnouncement(meta, articleUrl);
+  const channelChatId = config.channelChatId;
+  const { mediaFileId, mediaType } = extractMediaFromMessage(msg || {});
+
+  let result;
+  let coverGenerated = false;
+
+  if (mediaFileId && mediaType === "photo") {
+    // 1. Если пользователь сам прикрепил фото, используем его
+    result = await bot.api.sendPhoto(channelChatId, mediaFileId, {
+      caption: announcementText,
+      parse_mode: "HTML"
+    });
+  } else {
+    // 2. Если фото нет, генерируем авторскую AI-обложку
+    let cover = null;
+    try {
+      if (onStatusUpdate) {
+        await onStatusUpdate("🎨 Генерирую авторскую AI-обложку к статье (FLUX)...");
+      }
+      cover = await generateCoverImage({ prompt: meta.imagePrompt, title: meta.title });
+      coverGenerated = true;
+    } catch (imgErr) {
+      logger.warn(`[Article] Cover image generation failed (${imgErr.message}). Publishing without photo.`);
+    }
+
+    if (cover && cover.buffer) {
+      result = await bot.api.sendPhoto(channelChatId, new InputFile(cover.buffer, "cover.jpg"), {
+        caption: announcementText,
+        parse_mode: "HTML"
+      });
+    } else {
+      result = await bot.api.sendMessage(channelChatId, announcementText, {
+        parse_mode: "HTML",
+        link_preview_options: {
+          is_disabled: false,
+          prefer_large_media: true,
+          show_above_text: false,
+          url: articleUrl
+        }
+      });
+    }
+  }
+
+  const postLink = result.chat.username
+    ? `https://t.me/${result.chat.username}/${result.message_id}`
+    : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
+
+  return { articleUrl, postLink, title: meta.title, coverGenerated, hashtags: meta.hashtags };
+}
+
+async function handleArticleCommand(ctx, bot, config, msg, state = null) {
+  const caption = msg.caption || "";
+  const rawText = (msg.text || caption).trim();
+  const isArticleRaw = rawText.startsWith("/articleraw") || rawText.startsWith("/article_raw");
+  const isArticle = rawText.startsWith("/article") || rawText.startsWith("/postarticle") || rawText.startsWith("/post_article");
+
+  if (!isArticle) return false;
+
+  let commandLength = 8;
+  if (rawText.startsWith("/articleraw")) commandLength = 11;
+  else if (rawText.startsWith("/article_raw")) commandLength = 12;
+  else if (rawText.startsWith("/postarticle")) commandLength = 12;
+  else if (rawText.startsWith("/post_article")) commandLength = 13;
+
+  let draftText = rawText.slice(commandLength).trim();
+  if (!draftText) {
+    await ctx.reply("❌ Текст статьи пуст! Напишите черновик статьи после команды, например:\n`/article Заголовок и текст статьи...`");
+    return true;
+  }
+
+  const statusMsg = await ctx.reply("✍️ Готовлю и верстаю статью с помощью ИИ...");
+
+  try {
+    let finalMarkdown = draftText;
+    if (!isArticleRaw) {
+      finalMarkdown = await generateArticleWithLlm(config, draftText, state);
+    }
+
+    const onStatusUpdate = async (text) => {
+      try {
+        await ctx.api.editMessageText(ctx.chat.id, statusMsg.message_id, text);
+      } catch {}
+    };
+
+    await onStatusUpdate("⚡️ Публикую страницу на Telegraph и отправляю анонс в канал...");
+
+    const { articleUrl, postLink, title, coverGenerated, hashtags } = await createAndPublishArticle(
+      bot,
+      config,
+      finalMarkdown,
+      msg,
+      state,
+      onStatusUpdate
+    );
+
+    let successMsg = `✅ <b>Статья успешно опубликована!</b>\n\n` +
+      `📰 <b>Заголовок:</b> ${title}\n` +
+      `🌐 <b>Telegraph (Instant View):</b> ${articleUrl}\n` +
+      `📢 <b>Пост в канале:</b> ${postLink}`;
+
+    if (coverGenerated) {
+      successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована нейросетью FLUX`;
+    }
+    if (hashtags) {
+      successMsg += `\n🏷 <b>Теги:</b> ${hashtags}`;
+    }
+
+    await ctx.api.editMessageText(
+      ctx.chat.id,
+      statusMsg.message_id,
+      successMsg,
+      { parse_mode: "HTML" }
+    );
+  } catch (err) {
+    logger.error(`[Article] Error: ${err.message}`);
+    await ctx.api.editMessageText(
+      ctx.chat.id,
+      statusMsg.message_id,
+      `❌ Ошибка публикации статьи: ${err.message}`
+    );
+  }
+
+  return true;
+}
+
 async function handlePostCommand(ctx, bot, config, msg, state = null) {
   const caption = msg.caption || "";
   const rawText = (msg.text || caption).trim();
   const isPostRaw = rawText.startsWith("/postraw") || rawText.startsWith("/post_raw");
   const isPostLink = rawText.startsWith("/postlink") || rawText.startsWith("/post_link");
-  const isPost = rawText.startsWith("/post") && !isPostLink;
+  const isArticleCmd = rawText.startsWith("/article") || rawText.startsWith("/postarticle") || rawText.startsWith("/post_article");
+  const isPost = rawText.startsWith("/post") && !isPostLink && !isArticleCmd;
 
   if (!isPost) return false;
 
@@ -311,6 +559,13 @@ async function handlePostCommand(ctx, bot, config, msg, state = null) {
   if (!postText) {
     await ctx.reply("❌ Текст поста пуст! Напишите ваш текст после команды.");
     return true;
+  }
+
+  // Умная маршрутизация: если текст превышает лимит стандартного поста Telegram (~3800 символов)
+  if (postText.length > 3800) {
+    logger.info(`[Publishing] Post length is ${postText.length} chars (>3800). Routing to Article mode...`);
+    await ctx.reply("ℹ️ Текст слишком длинный для одного поста Telegram. Автоматически публикую его как статью (Instant View)...");
+    return handleArticleCommand(ctx, bot, config, msg, state);
   }
 
   try {
@@ -431,9 +686,15 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
 
 module.exports = {
   handlePostCommand,
+  handleArticleCommand,
+  createAndPublishArticle,
+  generateArticleWithLlm,
+  extractArticleMetadata,
+  buildArticleAnnouncement,
   publishToChannel,
   reformatPostWithLlm,
   FORMAT_SYSTEM_PROMPT,
+  ARTICLE_SYSTEM_PROMPT,
   generatePostFromLinkContent,
   handleLinkPost,
   LINK_POST_SYSTEM_PROMPT

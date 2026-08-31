@@ -1,7 +1,7 @@
 const { isOwner, isAllowedChat } = require("../utils/access");
 const { anonymizeId, sanitizeText } = require("../utils/message");
 const { getRelayTarget, storeRelayTarget } = require("../utils/relay");
-const { handlePostCommand, handleLinkPost } = require("../services/publishing");
+const { handlePostCommand, handleArticleCommand, handleLinkPost } = require("../services/publishing");
 const { cacheChannelPost, isRealAutoForwardedChannelPost } = require("../services/posts");
 const { logger } = require("../core/logger");
 const { extractUrls } = require("../services/fetcher");
@@ -43,7 +43,11 @@ function registerMessageHandlers(bot, deps) {
             await ctx.reply("Не вижу, кому отправить ответ. Нажмите Reply на уведомление от бота.");
           }
         } else {
-          const handled = await handlePostCommand(ctx, bot, config, msg, state);
+          let handled = await handleArticleCommand(ctx, bot, config, msg, state);
+          if (!handled) {
+            handled = await handlePostCommand(ctx, bot, config, msg, state);
+          }
+
           if (!handled) {
             const isPostLink = text.startsWith("/postlink") || text.startsWith("/post_link");
             let url = "";
@@ -64,7 +68,10 @@ function registerMessageHandlers(bot, deps) {
               await ctx.reply("❌ Пожалуйста, укажите корректную ссылку после команды.");
             } else {
               await ctx.reply(
-                "Не вижу, кому отправить ответ. Нажмите Reply на уведомление от пользователя, либо используйте `/post <текст>` для публикации поста в канал, или просто отправьте ссылку для публикации из нее."
+                "Не вижу, кому отправить ответ. Нажмите Reply на уведомление от пользователя, либо используйте:\n" +
+                "• `/post <текст>` — публикация поста в канал (с поддержкой сворачиваемых блоков)\n" +
+                "• `/article <текст>` — публикация статьи на Telegraph (Instant View)\n" +
+                "• или просто отправьте ссылку для публикации из нее."
               );
             }
           }

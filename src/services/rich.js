@@ -10,7 +10,7 @@ const renderer = {
     if (currentIsRich) {
       return `<p>${inlineHtml}</p>\n\n`;
     } else {
-      return inlineHtml + '\n\n';
+      return inlineHtml + "\n\n";
     }
   },
   heading(arg) {
@@ -21,6 +21,14 @@ const renderer = {
     } else {
       return `<b>${inlineHtml}</b>\n\n`;
     }
+  },
+  blockquote(arg) {
+    const innerHtml = this.parser.parse(arg.tokens).trim();
+    if (/\[!?(?:expandable|развернуть)\]/i.test(innerHtml)) {
+      const clean = innerHtml.replace(/\[!?(?:expandable|развернуть)\]\s*/gi, "");
+      return `<blockquote expandable>${clean}</blockquote>\n\n`;
+    }
+    return `<blockquote>${innerHtml}</blockquote>\n\n`;
   },
   list(arg) {
     if (currentIsRich) {
@@ -45,12 +53,12 @@ const renderer = {
       return marked.Renderer.prototype.table.call(this, arg);
     }
     let text = "";
-    arg.header.forEach(cell => {
+    arg.header.forEach((cell) => {
       text += `<b>${this.parser.parseInline(cell.tokens)}</b> | `;
     });
     text += "\n";
-    arg.rows.forEach(row => {
-      row.forEach(cell => {
+    arg.rows.forEach((row) => {
+      row.forEach((cell) => {
         text += `${this.parser.parseInline(cell.tokens)} | `;
       });
       text += "\n";
@@ -69,9 +77,9 @@ marked.use({
 
 function decodeHtmlEntities(str) {
   return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 }
@@ -93,8 +101,37 @@ function convertMathTags(html) {
 }
 
 /**
+ * Преобразует синтаксис **> в теги <blockquote expandable>
+ */
+function preprocessExpandableQuotes(text) {
+  if (!text || typeof text !== "string") return "";
+  const lines = text.split("\n");
+  const result = [];
+  let inExpandableBlock = false;
+  let currentBlock = [];
+
+  for (const line of lines) {
+    if (line.startsWith("**>")) {
+      inExpandableBlock = true;
+      currentBlock.push(line.slice(3).trimStart());
+    } else {
+      if (inExpandableBlock) {
+        result.push(`<blockquote expandable>\n${currentBlock.join("\n")}\n</blockquote>`);
+        currentBlock = [];
+        inExpandableBlock = false;
+      }
+      result.push(line);
+    }
+  }
+  if (inExpandableBlock) {
+    result.push(`<blockquote expandable>\n${currentBlock.join("\n")}\n</blockquote>`);
+  }
+  return result.join("\n");
+}
+
+/**
  * Конвертирует входящий Markdown в HTML для Telegram Rich/Standard Messages,
- * учитывая особенности рендеринга нативных списков, таблиц и переносов строк.
+ * учитывая особенности рендеринга нативных списков, таблиц, сворачиваемых цитат и переносов строк.
  * 
  * @param {string} text - текст Markdown
  * @param {boolean} isRich - использовать ли Rich-теги (таблицы, параграфы) или стандартные теги (для историй)
@@ -103,7 +140,8 @@ function convertMathTags(html) {
 function markdownToHtml(text, isRich = true) {
   if (!text) return "";
   currentIsRich = isRich;
-  let html = marked.parse(text).trim();
+  const preprocessed = preprocessExpandableQuotes(text);
+  let html = marked.parse(preprocessed).trim();
   
   // Конвертируем формулы LaTeX в нативные теги Telegram
   html = convertMathTags(html);
@@ -111,7 +149,7 @@ function markdownToHtml(text, isRich = true) {
   // Заменяем теги <br> / <br /> на переносы строк \n, так как Telegram
   // не поддерживает теги <br> и игнорирует/вырезает их, в то время как \n
   // полноценно поддерживается для перевода строки.
-  return html.replace(/<br\s*\/?>/gi, '\n');
+  return html.replace(/<br\s*\/?>/gi, "\n");
 }
 
 /**
@@ -185,6 +223,6 @@ async function sendRichMessageWithFallback(ctx, text, replyToMessageId, receiver
 
 module.exports = {
   markdownToHtml,
+  preprocessExpandableQuotes,
   sendRichMessageWithFallback
 };
-

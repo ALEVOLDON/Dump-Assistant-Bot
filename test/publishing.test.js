@@ -212,5 +212,21 @@ describe("Publishing Commands and LLM Formatting", () => {
       }
     }
   });
+
+  it("handles /article command correctly with empty text check", async () => {
+    const { handleArticleCommand } = require("../src/services/publishing");
+    const mockCtx = {
+      reply: mock.fn(() => Promise.resolve()),
+      message: { text: "/article" }
+    };
+    const mockBot = {};
+    const mockConfig = { channelChatId: "@channel" };
+
+    const handled = await handleArticleCommand(mockCtx, mockBot, mockConfig, mockCtx.message);
+    assert.equal(handled, true);
+    assert.equal(mockCtx.reply.mock.callCount(), 1);
+    assert.match(mockCtx.reply.mock.calls[0].arguments[0], /Текст статьи пуст/);
+  });
 });
+
 
