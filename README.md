@@ -14,6 +14,10 @@ By default, the project is configured to use the Gemini cloud model. OpenAI and 
 
 ## Features
 
+- **Telegraph Longreads & Articles (`/article`):** Automatically format and publish longform articles and drafts directly to Telegraph with native **Instant View** preview in the channel.
+- **🎨 AI Cover Generation (FLUX.1):** If no cover image is attached, AI crafts an editorial English prompt and generates a high-res 16:9 illustration using FLUX.
+- **🏷 Smart Hashtags:** Automatically extracts and appends 3–6 relevant hashtags for navigation.
+- **Expandable Blockquotes (`<blockquote expandable>`):** Formats extensive parameters, quotes, and technical details into Telegram expandable quotes (`**>` / `> [!expandable]`).
 - **Native Formatting (Telegram Bot API 10.2+):** The bot supports sending Rich Messages (native tables, lists, LaTeX formulas) by converting Markdown to HTML using the `marked` library. It includes full support for native math rendering (`tg-math` and `tg-math-block`) and an automatic safety fallback to standard text messages for older Telegram clients.
 - **Ephemeral Replies in Groups:** The bot can reply to comments in group discussions with private (ephemeral) messages visible only to the specific user who asked. This prevents chat clutter in public comment threads.
 - **Cloud-first LLM:** Gemini API is the recommended mode, requiring no local model installation.
@@ -22,9 +26,9 @@ By default, the project is configured to use the Gemini cloud model. OpenAI and 
 - **Post Context Caching:** Caches new channel posts to answer questions with full context of the original publication.
 - **Link Reading:** If a post or query contains a URL, the bot downloads the page content and incorporates it into the LLM prompt.
 - **First Comment Mode:** Automatically leaves a brief comment under new channel posts.
-- **Post Publishing (via DM):** The owner can send `/post <Markdown text>` (with optional image) directly to the bot to publish beautiful Rich posts to the channel. Media files are saved to the Vercel site's `public/media` folder and served via a persistent URL.
+- **Post Publishing (via DM):** The owner can send `/post <Markdown text>` (with optional image) directly to the bot to publish beautiful Rich posts to the channel. Media files are saved to the Vercel site's `public/media` folder and served via a persistent URL. Posts longer than 3800 characters automatically route to Telegraph article mode.
 - **Publishing from Links:** Send any link to the bot's DM. It automatically downloads the page content, generates a structured post using AI, appends the source link, and publishes it. Alternatively, use `/postlink <url>`.
-- **Owner Commands:** `/post`, `/postlink`, `/ephemeral`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
+- **Owner Commands:** `/article`, `/post`, `/postlink`, `/ephemeral`, `/status`, `/usage`, `/on`, `/off`, `/chatid`.
 - **Anti-spam & Focus:** Only replies to direct mentions, questions, and helpful requests, ignoring noise.
 
 ## Quick Start
@@ -175,6 +179,8 @@ Ollama environment variables can be left in `.env`: they are ignored unless `LLM
 
 ## Commands
 
+- `/article <text>` - Format and publish longread to Telegraph with Instant View, FLUX AI cover, and hashtags.
+- `/articleraw <text>` - Publish directly to Telegraph without LLM reformatting.
 - `/post <text>` - Publish markdown post to channel (sent via DM to the bot, supports Markdown and attaching one image).
 - `/postlink <url>` - Generate and publish a post based on link content. Also works by sending a bare link without the command.
 - `/ephemeral <on/off>` - Enable or disable private (ephemeral) replies in groups. Shows current status if called without arguments.
