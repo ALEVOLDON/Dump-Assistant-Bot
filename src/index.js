@@ -10,6 +10,7 @@ const { createReplyHandler } = require("./services/reply");
 const { createAutoCommentHandler } = require("./services/autoComment");
 const { registerCommands } = require("./handlers/commands");
 const { registerMessageHandlers } = require("./handlers/messages");
+const { registerOnboardingHandlers } = require("./handlers/onboarding");
 const { logger } = require("./core/logger");
 const { startServer } = require("./core/server");
 
@@ -106,6 +107,7 @@ const { maybeReplyToPost } = createAutoCommentHandler({
   storeUsage
 });
 
+registerOnboardingHandlers(bot, { config, state, posts });
 registerCommands(bot, { config, state, posts });
 registerMessageHandlers(bot, {
   config,
@@ -174,6 +176,35 @@ bot.start({
           logger.info(`✓ Список команд Telegram установлен для владельца ${ownerId}`);
         } catch (error) {
           logger.error(`❌ Ошибка при установке команд для владельца ${ownerId}:`, error);
+        }
+      }
+
+      // 1. Сбрасываем дефолтную кнопку меню Telegram для всех обычных пользователей (гостей)
+      try {
+        await bot.api.setChatMenuButton({
+          menu_button: { type: "default" }
+        });
+        logger.info("✓ Дефолтная кнопка меню Telegram сброшена на стандартную");
+      } catch (error) {
+        logger.error("❌ Ошибка при сбросе дефолтной кнопки меню Telegram:", error);
+      }
+
+      // 2. Устанавливаем кнопку меню WebApp Mini App ТОЛЬКО персонально для владельцев
+      if (config.webAppUrl) {
+        for (const ownerId of config.ownerUserIds) {
+          try {
+            await bot.api.setChatMenuButton({
+              chat_id: ownerId,
+              menu_button: {
+                type: "web_app",
+                text: "Админка",
+                web_app: { url: config.webAppUrl }
+              }
+            });
+            logger.info(`✓ Кнопка меню WebApp установлена для владельца ${ownerId}`);
+          } catch (error) {
+            logger.error(`❌ Ошибка при установке кнопки меню WebApp для владельца ${ownerId}:`, error);
+          }
         }
       }
     } catch (error) {

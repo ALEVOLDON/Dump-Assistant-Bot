@@ -1,3 +1,4 @@
+const { InlineKeyboard } = require("grammy");
 const { isOwner, isAllowedChat } = require("../utils/access");
 const { anonymizeId, sanitizeText } = require("../utils/message");
 const { getRelayTarget, storeRelayTarget } = require("../utils/relay");
@@ -5,6 +6,12 @@ const { handlePostCommand, handleArticleCommand, handleLinkPost } = require("../
 const { cacheChannelPost, isRealAutoForwardedChannelPost } = require("../services/posts");
 const { logger } = require("../core/logger");
 const { extractUrls } = require("../services/fetcher");
+const {
+  isPendingContact,
+  clearPendingContact,
+  shouldSendAudit,
+  formatAuditMessage
+} = require("./onboarding");
 
 function registerMessageHandlers(bot, deps) {
   const {
@@ -79,37 +86,85 @@ function registerMessageHandlers(bot, deps) {
         return;
       }
 
-      const primaryOwnerId = config.ownerUserIds[0];
-      logger.info(
-        `[Relay User→Owner] sender=${anonymizeId(fromId)} owner=${anonymizeId(primaryOwnerId)} type=${msg.text ? "text" : "media"}`
-      );
-
-      if (!primaryOwnerId) {
-        logger.error("[Relay Error] OWNER_USER_IDS не задан в .env!");
-        await ctx.reply("Извините, бот временно недоступен.");
+      // Игнорируем команды или сообщаем о неизвестной команде
+      if (text.startsWith("/")) {
+        if (!text.startsWith("/start")) {
+          await ctx.reply("Неизвестная команда. Нажмите /start для вызова меню.");
+        }
         return;
       }
 
-      try {
-        const header = `📨 Сообщение от ${username} (ID: ${fromId})`;
-        if (msg.text) {
-          const sent = await bot.api.sendMessage(primaryOwnerId, `${header}:\n\n${msg.text}`);
-          storeRelayTarget(config.statePath, state, sent.message_id, fromId);
-          logger.info("[Relay OK] Текст переслан владельцу");
-        } else {
-          const sent = await bot.api.sendMessage(
-            primaryOwnerId,
-            `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`,
-            { parse_mode: "Markdown" }
-          );
-          storeRelayTarget(config.statePath, state, sent.message_id, fromId);
-          await ctx.copyMessage(primaryOwnerId);
-          logger.info("[Relay OK] Медиа переслано владельцу");
+      const primaryOwnerId = config.ownerUserIds[0];
+
+      // Режим 1: Пользователь явно нажал «Написать админу»
+      if (isPendingContact(fromId)) {
+        clearPendingContact(fromId);
+
+        logger.info(
+          `[Relay User→Owner] sender=${anonymizeId(fromId)} owner=${anonymizeId(primaryOwnerId)} type=${msg.text ? "text" : "media"}`
+        );
+
+        if (!primaryOwnerId) {
+          logger.error("[Relay Error] OWNER_USER_IDS не задан в .env!");
+          await ctx.reply("Извините, бот временно недоступен.");
+          return;
         }
-        await ctx.reply("✅ Ваше сообщение отправлено администратору. Ожидайте ответа.");
-      } catch (e) {
-        logger.error(`[Relay Error] Не удалось переслать владельцу: ${e.message}`);
-        await ctx.reply("Извините, произошла ошибка. Попробуйте позже.");
+
+        try {
+          const header = `📨 Обращение от ${username} (ID: ${fromId})`;
+          if (msg.text) {
+            const sent = await bot.api.sendMessage(primaryOwnerId, `${header}:\n\n${msg.text}`);
+            storeRelayTarget(config.statePath, state, sent.message_id, fromId);
+            logger.info("[Relay OK] Текст обращения переслан владельцу");
+          } else {
+            const sent = await bot.api.sendMessage(
+              primaryOwnerId,
+              `${header}\n_Для ответа сделайте Reply (Ответить) на ЭТО сообщение_`,
+              { parse_mode: "Markdown" }
+            );
+            storeRelayTarget(config.statePath, state, sent.message_id, fromId);
+            await ctx.copyMessage(primaryOwnerId);
+            logger.info("[Relay OK] Медиа обращения переслано владельцу");
+          }
+          await ctx.reply("✅ Ваше сообщение отправлено администратору канала. Ожидайте ответа.");
+        } catch (e) {
+          logger.error(`[Relay Error] Не удалось переслать владельцу: ${e.message}`);
+          await ctx.reply("Извините, произошла ошибка при отправке. Попробуйте позже.");
+        }
+        return;
+      }
+
+      // Режим 2: Спонтанное сообщение в ЛС (гость просто написал текст)
+      const channel = (config.channelUsername || "dump_dump").replace(/^@/, "");
+      await ctx.reply(
+        `Я помогаю с ответами в комментариях под постами канала [@${channel}](https://t.me/${channel}).\n\n` +
+        `• Чтобы задать вопрос по теме публикации, перейдите в канал и откройте комментарии к нужному посту.\n` +
+        `• Если вы хотите передать личное сообщение автору — нажмите кнопку ниже:`,
+        {
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
+          reply_markup: new InlineKeyboard()
+            .url("📢 Перейти в канал", `https://t.me/${channel}`)
+            .text("✍️ Написать админу", "onboarding:contact_admin")
+        }
+      );
+
+      // Аудит для владельца о содержательном обращении гостя (с защитой от спама и rate-limit)
+      const contentSnippet = text || (msg.caption ? `[Медиа]: ${msg.caption}` : "[Медиафайл]");
+      if (primaryOwnerId && contentSnippet.length >= 2 && shouldSendAudit(fromId)) {
+        try {
+          const auditText = formatAuditMessage(
+            ctx.from,
+            contentSnippet,
+            "Отправлена подсказка по комментариям канала и кнопка связи с админом"
+          );
+          const auditMsg = await bot.api.sendMessage(primaryOwnerId, auditText, { parse_mode: "Markdown" });
+          // Сохраняем связку: если владелец сделает Reply на аудит-сообщение, ответ уйдет гостю
+          storeRelayTarget(config.statePath, state, auditMsg.message_id, fromId);
+          logger.info(`[Audit DM] Отправлен аудит владельцу для гостя ${anonymizeId(fromId)}`);
+        } catch (auditErr) {
+          logger.warn(`[Audit DM Error] Не удалось отправить аудит владельцу: ${auditErr.message}`);
+        }
       }
       return;
     }

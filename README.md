@@ -58,6 +58,8 @@ ALLOWED_CHAT_IDS=-1001234567890
 ALLOW_ALL_CHATS=false
 OWNER_USER_IDS=123456789
 CHANNEL_CHAT_ID=-1001234567890
+CHANNEL_USERNAME=dump_dump
+WEBAPP_URL=https://your-domain.ngrok-free.app/app
 
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
@@ -72,6 +74,8 @@ Where:
 - `ALLOW_ALL_CHATS` - Open mode for all chats. Disabled by default.
 - `OWNER_USER_IDS` - Comma-separated list of Telegram IDs of bot owners.
 - `CHANNEL_CHAT_ID` - Channel ID for publishing posts via `/post` (starts with `-100`).
+- `CHANNEL_USERNAME` - Channel username without `@` used in onboarding links (default: `dump_dump`).
+- `WEBAPP_URL` - Public HTTPS URL of the Mini App admin panel (scopes menu button exclusively to owners).
 - `LLM_PROVIDER` - One of: `gemini`, `openai`, `ollama`.
 
 ### 3. Telegram Setup
@@ -85,11 +89,16 @@ Where:
 npm start
 ```
 
-### 4. Web App Admin Panel & Windows Startup
+### 4. Web App Admin Panel & Scoped UI
 
 The bot includes an Express web server hosting a Telegram Mini App admin panel for adjusting AI settings, checking token usage, and publishing posts in the "Composer" tab.
 
 ![Admin Panel](assets/admin_panel_en.jpg)
+
+#### Interface Protection & Scoped Menu Button:
+* **Guests never see the admin UI**: on startup, the bot invokes `setChatMenuButton` to reset the default menu button for all regular visitors.
+* **Owners receive the Web App button**: the bot scopes the Telegram `web_app` menu button exclusively to IDs in `OWNER_USER_IDS` whenever `WEBAPP_URL` is configured.
+* **Quick Access on `/start`**: sending `/start` as an owner returns an inline "🛠 Панель управления" button to open the Mini App in one tap.
 
 #### One-Click Launch on Windows:
 Run the [start.bat](start.bat) file in the root directory. It automatically opens separate command prompts and runs:
@@ -109,15 +118,33 @@ Run the [start.bat](start.bat) file in the root directory. It automatically open
    ```bash
    ngrok http --domain=your-domain.ngrok-free.app 3001
    ```
-4. Copy the public HTTPS URL and configure the menu button in Telegram:
-   - Open [@BotFather](https://t.me/BotFather) -> `/mybots` -> select your bot -> **Bot Settings** -> **Menu Button** -> **Configure menu button**.
-   - Send [@BotFather](https://t.me/BotFather) the URL appending `/app` (e.g., `https://your-domain.ngrok-free.app/app`).
+4. Set the resulting URL in `.env`:
+   ```env
+   WEBAPP_URL=https://your-domain.ngrok-free.app/app
+   ```
+   The bot will automatically scope the menu button to owners on startup.
 
 > [!TIP]
 > To access the admin panel directly via a regular web browser without Telegram authentication, add the following to your `.env`:
 > ```env
 > BYPASS_INIT_DATA_AUTH=true
 > ```
+
+### 5. Private DM Onboarding (Guests vs Owners)
+
+* **For Guests (Visitors / Subscribers):**
+  - Sending `/start` presents an interactive greeting with 4 action buttons:
+    - `ℹ️ Что умеет бот` — Explains comment answering, link summarization, and admin relay.
+    - `📢 Открыть канал` — Direct link to the channel.
+    - `❓ Задать вопрос` — Clarifies that AI Q&A occurs in channel post comments.
+    - `✍️ Написать админу` — Activates message relay to the channel owner.
+  - **No Owner Spam**: tapping info buttons and repeated `/start` commands generate zero notifications for the owner.
+  - **Admin Contact (Relay)**: when tapping "Написать админу", the visitor's next message is forwarded to the owner. The owner can reply directly using Telegram's native Reply feature.
+  - **Owner Audit for Free Text**: spontaneous visitor DMs receive a polite guidance prompt with channel buttons, and a compact audit message (`[Audit DM]`) is dispatched to the owner with rate-limiting (60s cooldown). The owner can reply to the audit message to contact the visitor.
+
+* **BotFather Suggestions:**
+  - **About:** Official AI assistant for @dump_dump. Post discussion answers, link summaries, and creator feedback.
+  - **Description:** Hi! I am the AI assistant for @dump_dump. I answer questions in comment discussions, summarize links, and forward feedback to the channel author. Open the channel or tap /start!
 
 ## LLM Providers
 

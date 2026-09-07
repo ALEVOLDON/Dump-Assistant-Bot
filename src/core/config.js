@@ -59,6 +59,8 @@ module.exports = {
   ownerUserIds: parseIdList(process.env.OWNER_USER_IDS),
   channelChatId: process.env.CHANNEL_CHAT_ID || "",
   channelAbout: process.env.CHANNEL_ABOUT || "",
+  channelUsername: (process.env.CHANNEL_USERNAME || "dump_dump").replace(/^@/, "").trim(),
+  webAppUrl: (process.env.WEBAPP_URL || "").trim(),
   autoReplyEnabled: readBoolean("AUTO_REPLY_ENABLED", true),
   maxReplyChars: readNumber("MAX_REPLY_CHARS", 260),
   threadCooldownMs: readNumber("THREAD_COOLDOWN_MS", 90_000),
