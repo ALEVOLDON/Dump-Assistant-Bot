@@ -43,7 +43,10 @@ module.exports = {
   // Gemini API
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
+  geminiImageModel: process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
   geminiBaseUrl: (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, ""),
+  imageProvider: (process.env.IMAGE_PROVIDER || "gemini").toLowerCase(),
+  imageStylePreset: (process.env.IMAGE_STYLE_PRESET || "cyber").toLowerCase(),
   // OpenAI API
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",

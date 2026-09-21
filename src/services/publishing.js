@@ -83,8 +83,8 @@ const ARTICLE_SYSTEM_PROMPT = `Ты — профессиональный тех�
 
 Правила структуры статьи:
 1. Заголовок первого уровня на первой строке: "# 🚀 Название статьи" (емкий, понятный, привлекательный).
-2. Сразу под заголовком добавь комментарий с промптом для генерации обложки на английском языке:
-<!-- image_prompt: A modern sleek 3D digital illustration representing the key topic, dark tech background, glowing neon accents, cinematic lighting, 8k, 16:9 -->
+2. Сразу под заголовком добавь комментарий с точным визуальным описанием ключевого 3D-объекта статьи на английском языке для генератора обложек канала DUMP (например: Sleek 3D concept of a futuristic vintage refrigerator with glowing cyan and violet neural sensors, floating holographic circuit elements):
+<!-- image_prompt: Sleek 3D conceptual illustration of the core topic, deep obsidian background, vibrant neon cyan and violet accents, cinematic volumetric lighting -->
 3. Вводная часть / TL;DR: 1-2 абзаца с контекстом, почему эта тема важна и что узнает читатель.
 4. Логические разделы: разделяй блоки подзаголовками третьего уровня (например, "### 🔹 Архитектура решения", "### ⚙️ Практическое применение").
 5. Тело статьи: подробно и логично излагай суть, сохраняя все факты, аргументы и технические нюансы автора.
@@ -204,11 +204,18 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
   let finalMediaType = mediaType;
   let finalFileName = fileName;
   let ogImageUrl = null;
+  let coverBuffer = null;
 
-  if (!finalMediaFileId && customMedia && customMedia.ogImage) {
-    ogImageUrl = customMedia.ogImage;
-    finalMediaType = "photo";
-    finalFileName = "cover.jpg";
+  if (!finalMediaFileId && customMedia) {
+    if (customMedia.coverBuffer || customMedia.buffer) {
+      coverBuffer = customMedia.coverBuffer || customMedia.buffer;
+      finalMediaType = "photo";
+      finalFileName = customMedia.fileName || "cover.png";
+    } else if (customMedia.ogImage) {
+      ogImageUrl = customMedia.ogImage;
+      finalMediaType = "photo";
+      finalFileName = "cover.jpg";
+    }
   }
 
   let finalMarkdown = postText;
@@ -278,8 +285,8 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
       .replace(/<video[^>]*>/gi, "")
       .trim();
 
-    if ((finalMediaFileId || ogImageUrl || sourceUrl) && !mediaSentSeparately) {
-      if (htmlContent.length <= 1024 && (finalMediaFileId || ogImageUrl)) {
+    if ((finalMediaFileId || ogImageUrl || coverBuffer || sourceUrl) && !mediaSentSeparately) {
+      if (htmlContent.length <= 1024 && (finalMediaFileId || ogImageUrl || coverBuffer)) {
         const sendParams = {
           chat_id: channelChatId,
           caption: htmlContent,
@@ -295,6 +302,8 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           } else if (finalMediaType === "document") {
             result = await bot.api.sendDocument(channelChatId, finalMediaFileId, sendParams);
           }
+        } else if (coverBuffer) {
+          result = await bot.api.sendPhoto(channelChatId, new InputFile(coverBuffer, finalFileName), sendParams);
         } else if (ogImageUrl) {
           if (localMediaPath && fs.existsSync(localMediaPath)) {
             result = await bot.api.sendPhoto(channelChatId, new InputFile(localMediaPath), sendParams);
@@ -303,6 +312,11 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           }
         }
       } else {
+        if (coverBuffer) {
+          await bot.api.sendPhoto(channelChatId, new InputFile(coverBuffer, finalFileName));
+          mediaSentSeparately = true;
+          mediaTypeSent = "photo";
+        }
         let textWithMedia = htmlContent;
         let previewUrl = sourceUrl;
         if (!previewUrl && htmlTag && htmlTag.includes("src=")) {
@@ -435,16 +449,17 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
     let cover = null;
     try {
       if (onStatusUpdate) {
-        await onStatusUpdate("🎨 Генерирую авторскую AI-обложку к статье (FLUX)...");
+        const providerName = (config.imageProvider || "gemini").toLowerCase() === "gemini" ? "Gemini" : "FLUX";
+        await onStatusUpdate(`🎨 Генерирую авторскую AI-обложку к статье (${providerName})...`);
       }
-      cover = await generateCoverImage({ prompt: meta.imagePrompt, title: meta.title });
+      cover = await generateCoverImage({ prompt: meta.imagePrompt, title: meta.title, config });
       coverGenerated = true;
     } catch (imgErr) {
       logger.warn(`[Article] Cover image generation failed (${imgErr.message}). Publishing without photo.`);
     }
 
     if (cover && cover.buffer) {
-      result = await bot.api.sendPhoto(channelChatId, new InputFile(cover.buffer, "cover.jpg"), {
+      result = await bot.api.sendPhoto(channelChatId, new InputFile(cover.buffer, cover.fileName || "cover.png"), {
         caption: announcementText,
         parse_mode: "HTML"
       });
@@ -465,7 +480,14 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
     ? `https://t.me/${result.chat.username}/${result.message_id}`
     : `https://t.me/c/${String(result.chat.id).replace("-100", "")}/${result.message_id}`;
 
-  return { articleUrl, postLink, title: meta.title, coverGenerated, hashtags: meta.hashtags };
+  return {
+    articleUrl,
+    postLink,
+    title: meta.title,
+    coverGenerated,
+    coverProvider: cover?.provider || null,
+    hashtags: meta.hashtags
+  };
 }
 
 async function handleArticleCommand(ctx, bot, config, msg, state = null) {
@@ -504,7 +526,7 @@ async function handleArticleCommand(ctx, bot, config, msg, state = null) {
 
     await onStatusUpdate("⚡️ Публикую страницу на Telegraph и отправляю анонс в канал...");
 
-    const { articleUrl, postLink, title, coverGenerated, hashtags } = await createAndPublishArticle(
+    const { articleUrl, postLink, title, coverGenerated, coverProvider, hashtags } = await createAndPublishArticle(
       bot,
       config,
       finalMarkdown,
@@ -519,7 +541,8 @@ async function handleArticleCommand(ctx, bot, config, msg, state = null) {
       `📢 <b>Пост в канале:</b> ${postLink}`;
 
     if (coverGenerated) {
-      successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована нейросетью FLUX`;
+      const providerLabel = coverProvider === "gemini" ? "Google Gemini" : "FLUX";
+      successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована нейросетью ${providerLabel}`;
     }
     if (hashtags) {
       successMsg += `\n🏷 <b>Теги:</b> ${hashtags}`;
@@ -657,11 +680,35 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
     const generatedText = await generatePostFromLinkContent(config, url, meta.text, state);
     const postWithSource = generatedText;
 
-    const customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;
+    let customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;
+
+    // Если у источника нет og:image и пользователь не прикрепил медиа, генерируем фирменную обложку в стиле канала
+    const msgMedia = extractMediaFromMessage(ctx.message || {});
+    let coverGenerated = false;
+    if (!customMedia && !msgMedia.mediaFileId) {
+      try {
+        await ctx.api.editMessageText(
+          ctx.chat.id,
+          statusMsg.message_id,
+          "🎨 Генерирую фирменную AI-обложку в стиле канала (Gemini)..."
+        );
+        const titleLine = (postWithSource.split("\n")[0] || "").replace(/^[#*`_\s]+/g, "");
+        const cover = await generateCoverImage({ prompt: titleLine, title: titleLine, config });
+        if (cover && cover.buffer) {
+          customMedia = { coverBuffer: cover.buffer, fileName: cover.fileName || "cover.png" };
+          coverGenerated = true;
+        }
+      } catch (covErr) {
+        logger.warn(`[Publishing] Link post cover generation failed (${covErr.message}).`);
+      }
+    }
 
     const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message, customMedia, url);
 
     let successMsg = `✅ Пост по ссылке успешно опубликован в канале!\nСсылка: ${postLink}`;
+    if (coverGenerated) {
+      successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована в фирменном стиле канала (Gemini)`;
+    }
     if (mediaDeployed) {
       successMsg += "\n\n🌐 Медиа залито на сайт. Vercel пересобирает деплой — публичный URL может открыться через 1–2 минуты.";
     }
