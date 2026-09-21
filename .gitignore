@@ -16,6 +16,7 @@ DEBUG.md
 agent-tools/
 terminals/
 test/temp-*.json
+scratch/
 
 
 # Local launch scripts

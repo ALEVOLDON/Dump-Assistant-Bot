@@ -15,7 +15,7 @@ By default, the project is configured to use the Gemini cloud model. OpenAI and 
 ## Features
 
 - **Telegraph Longreads & Articles (`/article`):** Automatically format and publish longform articles and drafts directly to Telegraph with native **Instant View** preview in the channel.
-- **🎨 AI Cover Generation (FLUX.1):** If no cover image is attached, AI crafts an editorial English prompt and generates a high-res 16:9 illustration using FLUX.
+- **🎨 Brand AI Cover Generation (Google Gemini & FLUX):** If no cover image is attached, AI drafts a visual prompt and generates a widescreen 16:9 illustration in the DUMP brand visual style (Cyber, Solar, Emerald, Void palettes) via **Google Gemini** (`gemini-2.5-flash-image`) with cascade fallback to Pollinations FLUX. Strictly filters out text and typography artifacts.
 - **🏷 Smart Hashtags:** Automatically extracts and appends 3–6 relevant hashtags for navigation.
 - **Expandable Blockquotes (`<blockquote expandable>`):** Formats extensive parameters, quotes, and technical details into Telegram expandable quotes (`**>` / `> [!expandable]`).
 - **Native Formatting (Telegram Bot API 10.2+):** The bot supports sending Rich Messages (native tables, lists, LaTeX formulas) by converting Markdown to HTML using the `marked` library. It includes full support for native math rendering (`tg-math` and `tg-math-block`) and an automatic safety fallback to standard text messages for older Telegram clients.
@@ -206,7 +206,7 @@ Ollama environment variables can be left in `.env`: they are ignored unless `LLM
 
 ## Commands
 
-- `/article <text>` - Format and publish longread to Telegraph with Instant View, FLUX AI cover, and hashtags.
+- `/article <text>` - Format and publish longread to Telegraph with Instant View, brand Gemini AI cover, and hashtags.
 - `/articleraw <text>` - Publish directly to Telegraph without LLM reformatting.
 - `/post <text>` - Publish markdown post to channel (sent via DM to the bot, supports Markdown and attaching one image).
 - `/postlink <url>` - Generate and publish a post based on link content. Also works by sending a bare link without the command.
