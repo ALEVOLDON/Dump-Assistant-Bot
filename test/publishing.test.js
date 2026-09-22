@@ -227,6 +227,132 @@ describe("Publishing Commands and LLM Formatting", () => {
     assert.equal(mockCtx.reply.mock.callCount(), 1);
     assert.match(mockCtx.reply.mock.calls[0].arguments[0], /Текст статьи пуст/);
   });
+
+  it("creates and publishes article generating AI cover without scoping errors", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock.fn(async (url, options) => {
+      if (url.includes("/createPage")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            result: {
+              path: "Test-Article-123",
+              url: "https://telegra.ph/Test-Article-123",
+              title: "Test Article"
+            }
+          })
+        };
+      }
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "image/jpeg" }),
+        arrayBuffer: async () => Buffer.alloc(2000)
+      };
+    });
+
+    const mockBot = {
+      api: {
+        sendPhoto: mock.fn(() => Promise.resolve({
+          message_id: 789,
+          chat: { id: -1001234567, username: "mychannel" }
+        })),
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 790,
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567",
+      imageProvider: "flux"
+    };
+
+    const mockState = { telegraph_access_token: "test_token" };
+
+    try {
+      const { createAndPublishArticle } = require("../src/services/publishing");
+      const result = await createAndPublishArticle(
+        mockBot,
+        mockConfig,
+        "# Test Article\n\nArticle body paragraph.\n\n#test",
+        {},
+        mockState
+      );
+
+      assert.equal(result.articleUrl, "https://telegra.ph/Test-Article-123");
+      assert.equal(result.postLink, "https://t.me/mychannel/789");
+      assert.equal(result.coverGenerated, true);
+      assert.equal(result.coverProvider, "pollinations");
+      assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("publishes article without cover if image generation fails without scoping errors", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock.fn(async (url, options) => {
+      if (url.includes("/createPage")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            result: {
+              path: "Test-Article-456",
+              url: "https://telegra.ph/Test-Article-456",
+              title: "Test Article Failed Image"
+            }
+          })
+        };
+      }
+      return {
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error"
+      };
+    });
+
+    const mockBot = {
+      api: {
+        sendPhoto: mock.fn(() => Promise.resolve({
+          message_id: 791,
+          chat: { id: -1001234567, username: "mychannel" }
+        })),
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 792,
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567",
+      imageProvider: "flux"
+    };
+
+    const mockState = { telegraph_access_token: "test_token" };
+
+    try {
+      const { createAndPublishArticle } = require("../src/services/publishing");
+      const result = await createAndPublishArticle(
+        mockBot,
+        mockConfig,
+        "# Test Article Failed Image\n\nArticle body paragraph.\n\n#test",
+        {},
+        mockState
+      );
+
+      assert.equal(result.articleUrl, "https://telegra.ph/Test-Article-456");
+      assert.equal(result.postLink, "https://t.me/mychannel/792");
+      assert.equal(result.coverGenerated, false);
+      assert.equal(result.coverProvider, null);
+      assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 

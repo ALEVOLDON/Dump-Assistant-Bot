@@ -437,6 +437,7 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
 
   let result;
   let coverGenerated = false;
+  let cover = null;
 
   if (mediaFileId && mediaType === "photo") {
     // 1. Если пользователь сам прикрепил фото, используем его
@@ -446,14 +447,13 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
     });
   } else {
     // 2. Если фото нет, генерируем авторскую AI-обложку
-    let cover = null;
     try {
       if (onStatusUpdate) {
         const providerName = (config.imageProvider || "gemini").toLowerCase() === "gemini" ? "Gemini" : "FLUX";
         await onStatusUpdate(`🎨 Генерирую авторскую AI-обложку к статье (${providerName})...`);
       }
       cover = await generateCoverImage({ prompt: meta.imagePrompt, title: meta.title, config });
-      coverGenerated = true;
+      coverGenerated = Boolean(cover && cover.buffer);
     } catch (imgErr) {
       logger.warn(`[Article] Cover image generation failed (${imgErr.message}). Publishing without photo.`);
     }
