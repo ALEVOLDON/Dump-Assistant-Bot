@@ -102,7 +102,11 @@ describe("Image Generator & Article Metadata", () => {
     });
 
     try {
-      const result = await generateCoverImage({ prompt: "Test prompt", title: "Test Title" });
+      const result = await generateCoverImage({
+        prompt: "Test prompt",
+        title: "Test Title",
+        config: { geminiApiKey: "test-key", imageProvider: "gemini" }
+      });
       assert.equal(result.mimeType, "image/png");
       assert.equal(result.fileName, "cover.png");
       assert.equal(result.buffer.length, 2048);
@@ -135,7 +139,11 @@ describe("Image Generator & Article Metadata", () => {
     });
 
     try {
-      const result = await generateCoverImage({ prompt: "Test prompt", title: "Test Title" });
+      const result = await generateCoverImage({
+        prompt: "Test prompt",
+        title: "Test Title",
+        config: { geminiApiKey: "test-key", imageProvider: "gemini" }
+      });
       assert.equal(result.provider, "pollinations");
       assert.equal(result.mimeType, "image/jpeg");
       assert.equal(result.fileName, "cover.jpg");
