@@ -40,22 +40,28 @@ const THEME_STYLES = {
  */
 function buildCoverPrompt(rawPrompt, title = "", theme = "cyber") {
   let subject = (rawPrompt || "").trim();
+
+  // Очистка от markdown-тегов и кавычек
+  subject = subject.replace(/["\n\r]/g, " ").trim();
+
   if (!subject && title) {
-    subject = `A modern conceptual digital art illustration representing ${title.replace(/[#*`_]/g, "").trim()}`;
+    // Очищаем заголовок от markdown, хештегов и эмодзи
+    const cleanTitle = title
+      .replace(/[#*`_]/g, "")
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+      .trim();
+    subject = `A modern conceptual digital art illustration representing ${cleanTitle}`;
   }
   if (!subject) {
     subject = "Modern artificial intelligence and future technology abstract 3D concept";
   }
 
-  // Убираем лишние кавычки и служебные символы
-  subject = subject.replace(/["\n\r]/g, " ").trim();
-
   // Получаем стиль оформления канала
   const selectedTheme = (theme || "cyber").toLowerCase();
   const style = THEME_STYLES[selectedTheme] || THEME_STYLES.cyber;
 
-  // Формируем промпт строго в визуальном стиле канала DUMP
-  return `${subject}. Style: modern tech editorial illustration, sleek 3D render in Octane/Cinema4D aesthetic. Color palette: ${style.palette}. Lighting: ${style.lighting}. Materials: ${style.materials}. Composition: wide horizontal banner, 16:9 widescreen aspect ratio, centered visual focal point, ultra-detailed 8k, cinematic depth of field. Strictly no text, no typography, no letters, no words, no watermarks, no collage`;
+  // Формируем промпт строго в визуальном стиле канала DUMP с кинематографичным качеством
+  return `${subject}. Style: modern tech editorial illustration, sleek 3D render in Octane/Cinema4D aesthetic, studio product photography composition. Color palette: ${style.palette}. Lighting: ${style.lighting}, subtle subsurface scattering. Materials: ${style.materials}. Composition: wide horizontal banner, 16:9 widescreen aspect ratio, centered visual focal point, ultra-detailed 8k, cinematic depth of field, clean negative space. Strictly no text, no typography, no letters, no words, no watermarks, no collage`;
 }
 
 /**

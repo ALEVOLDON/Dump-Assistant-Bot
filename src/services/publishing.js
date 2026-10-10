@@ -83,8 +83,11 @@ const ARTICLE_SYSTEM_PROMPT = `Ты — профессиональный тех�
 
 Правила структуры статьи:
 1. Заголовок первого уровня на первой строке: "# 🚀 Название статьи" (емкий, понятный, привлекательный).
-2. Сразу под заголовком добавь комментарий с точным визуальным описанием ключевого 3D-объекта статьи на английском языке для генератора обложек канала DUMP (например: Sleek 3D concept of a futuristic vintage refrigerator with glowing cyan and violet neural sensors, floating holographic circuit elements):
-<!-- image_prompt: Sleek 3D conceptual illustration of the core topic, deep obsidian background, vibrant neon cyan and violet accents, cinematic volumetric lighting -->
+2. Сразу под заголовком ОБЯЗАТЕЛЬНО добавь скрытый тег <!-- image_prompt: ... --> с детальным визуальным описанием ключевого физического 3D-объекта/метафоры статьи строго на английском языке для генератора обложек канала DUMP.
+   - Описывай конкретный овеществлённый 3D-объект в пространстве, а не абстрактные концепции (например: вместо "AI security" -> "A floating obsidian monolithic padlock with glowing neon cyan microcircuitry and translucent violet crystal prisms orbiting it").
+   - Избегай слов "text", "letters", "words", "logo", "infographic".
+   - Пример оформления строки:
+<!-- image_prompt: A sleek floating translucent neural processor core with intricate glowing cyan optical pathways, floating violet crystalline prisms, dark obsidian environment -->
 3. Вводная часть / TL;DR: 1-2 абзаца с контекстом, почему эта тема важна и что узнает читатель.
 4. Логические разделы: разделяй блоки подзаголовками третьего уровня (например, "### 🔹 Архитектура решения", "### ⚙️ Практическое применение").
 5. Тело статьи: подробно и логично излагай суть, сохраняя все факты, аргументы и технические нюансы автора.
