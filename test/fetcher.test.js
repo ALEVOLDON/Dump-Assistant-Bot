@@ -98,4 +98,14 @@ describe("extractOgImage", () => {
     const html = `<html><head><meta class="meta-tag" property="og:image" data-test="123" content="https://example.com/cover6.jpg" /></head></html>`;
     assert.equal(extractOgImage(html), "https://example.com/cover6.jpg");
   });
+
+  it("extracts twitter:image:url and value attribute", () => {
+    const html = `<html><head><meta name="twitter:image:url" value="https://example.com/cover7.jpg" /></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/cover7.jpg");
+  });
+
+  it("extracts image from JSON-LD schema", () => {
+    const html = `<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"NewsArticle","image":"https://example.com/jsonld-cover.jpg"}</script></head></html>`;
+    assert.equal(extractOgImage(html), "https://example.com/jsonld-cover.jpg");
+  });
 });

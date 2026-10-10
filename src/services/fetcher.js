@@ -268,6 +268,12 @@ async function fetchTwitterMetadata(urlString, signal) {
               tweet.media?.photos?.[0]?.url ||
               tweet.media?.all?.[0]?.url ||
               tweet.media?.videos?.[0]?.thumbnail_url ||
+              tweet.card?.image?.url ||
+              tweet.card?.thumbnail_url ||
+              tweet.card?.image_url ||
+              tweet.quote?.media?.photos?.[0]?.url ||
+              tweet.quote?.media?.all?.[0]?.url ||
+              tweet.quote?.card?.image?.url ||
               null;
 
             return {
@@ -298,7 +304,13 @@ async function fetchTwitterMetadata(urlString, signal) {
             lines.push(`СТАТИСТИКА: ❤️ ${data.likes} | 🔄 ${data.retweets}`);
           }
 
-          const mediaUrl = data.mediaURLs?.[0] || data.media_extended?.[0]?.url || null;
+          const mediaUrl =
+            data.mediaURLs?.[0] ||
+            data.media_extended?.[0]?.url ||
+            data.card?.image_url ||
+            data.card?.image ||
+            data.image_url ||
+            null;
 
           return {
             text: lines.join("\n") || null,
@@ -360,14 +372,16 @@ function extractOgImage(html) {
     const property = getAttr(tag, "property") || "";
     const name = getAttr(tag, "name") || "";
     const itemprop = getAttr(tag, "itemprop") || "";
-    const content = getAttr(tag, "content");
+    const content = getAttr(tag, "content") || getAttr(tag, "value");
 
     if (content) {
       const isImage = 
         /^(og:image|og:image:url|og:image:secure_url)$/i.test(property) ||
         /^(og:image|og:image:url|og:image:secure_url)$/i.test(name) ||
-        /^(twitter:image|twitter:image:src)$/i.test(property) ||
-        /^(twitter:image|twitter:image:src)$/i.test(name) ||
+        /^(twitter:image|twitter:image:src|twitter:image:url)$/i.test(property) ||
+        /^(twitter:image|twitter:image:src|twitter:image:url)$/i.test(name) ||
+        /^(image|thumbnail)$/i.test(property) ||
+        /^(image|thumbnail)$/i.test(name) ||
         /^image$/i.test(itemprop);
 
       if (isImage) {
@@ -386,7 +400,7 @@ function extractOgImage(html) {
   for (const tag of linkTags) {
     const rel = getAttr(tag, "rel") || "";
     const href = getAttr(tag, "href");
-    if (href && /^image_src$/i.test(rel)) {
+    if (href && /^(image_src|thumbnail)$/i.test(rel)) {
       return href
         .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
@@ -395,6 +409,29 @@ function extractOgImage(html) {
         .replace(/&#39;/g, "'")
         .trim();
     }
+  }
+
+  // Fallback: поиск картинки в JSON-LD
+  const jsonLdMatches = html.match(/<script\s+[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const scriptTag of jsonLdMatches) {
+    try {
+      const jsonContent = scriptTag.replace(/<script[^>]*>|<\/script>/gi, "").trim();
+      const parsed = JSON.parse(jsonContent);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of items) {
+        let img = null;
+        if (typeof item.image === "string") {
+          img = item.image;
+        } else if (Array.isArray(item.image) && typeof item.image[0] === "string") {
+          img = item.image[0];
+        } else if (item.image && typeof item.image.url === "string") {
+          img = item.image.url;
+        }
+        if (img && /^https?:\/\//i.test(img)) {
+          return img.trim();
+        }
+      }
+    } catch {}
   }
 
   return null;
