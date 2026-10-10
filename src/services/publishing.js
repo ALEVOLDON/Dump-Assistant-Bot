@@ -682,10 +682,11 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
 
     let customMedia = meta.ogImage ? { ogImage: meta.ogImage } : null;
 
-    // Если у источника нет og:image и пользователь не прикрепил медиа, генерируем фирменную обложку в стиле канала
+    // Если у источника нет og:image и пользователь не прикрепил медиа,
+    // генерируем фирменную обложку только если включена настройка LINK_POST_AUTO_COVER
     const msgMedia = extractMediaFromMessage(ctx.message || {});
     let coverGenerated = false;
-    if (!customMedia && !msgMedia.mediaFileId) {
+    if (config?.linkPostAutoCover && !customMedia && !msgMedia.mediaFileId) {
       try {
         await ctx.api.editMessageText(
           ctx.chat.id,

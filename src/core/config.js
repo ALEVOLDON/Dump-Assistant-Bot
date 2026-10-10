@@ -73,6 +73,7 @@ module.exports = {
   mediaStorageDir: process.env.MEDIA_STORAGE_DIR || "",
   mediaPublicBaseUrl: (process.env.MEDIA_PUBLIC_BASE_URL || "").replace(/\/$/, ""),
   mediaAutoDeploy: readBoolean("MEDIA_AUTO_DEPLOY", true),
+  linkPostAutoCover: readBoolean("LINK_POST_AUTO_COVER", false),
   dataDir,
   port: readNumber("PORT", 3001),
   promptPath: path.join(process.cwd(), "prompts", "assistant.md"),
