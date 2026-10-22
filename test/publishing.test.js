@@ -151,7 +151,10 @@ describe("Publishing Commands and LLM Formatting", () => {
       api: {
         sendMessage: mock.fn(() => Promise.resolve({
           message_id: 789,
-          chat: { id: -1001234567, username: "mychannel" }
+          chat: { id: -1001234567, username: "mychannel" },
+          link_preview_options: {
+            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          }
         })),
         sendPhoto: mock.fn(() => Promise.resolve({}))
       }
@@ -179,10 +182,51 @@ describe("Publishing Commands and LLM Formatting", () => {
     assert.equal(calls.arguments[0], "-1001234567");
     assert.deepEqual(calls.arguments[2].link_preview_options, {
       is_disabled: false,
-      url: "https://youtu.be/dQw4w9WgXcQ",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       prefer_large_media: true,
       show_above_text: true
     });
+  });
+
+  it("falls back to sendPhoto with YouTube thumbnail when Telegram crawler fails to generate preview", async () => {
+    const mockBot = {
+      api: {
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 789,
+          chat: { id: -1001234567, username: "mychannel" },
+          link_preview_options: {}
+        })),
+        sendPhoto: mock.fn(() => Promise.resolve({
+          message_id: 790,
+          chat: { id: -1001234567, username: "mychannel" }
+        })),
+        deleteMessage: mock.fn(() => Promise.resolve(true))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567"
+    };
+
+    const shortPost = "Short post about video\n\n🔗 <a href=\"https://youtu.be/7ZqwcaRX-c0\">Источник</a>";
+    const { result, postLink, mediaTypeSent } = await publishToChannel(
+      mockBot,
+      mockConfig,
+      shortPost,
+      null,
+      { ogImage: "https://i.ytimg.com/vi/7ZqwcaRX-c0/hqdefault.jpg" },
+      "https://youtu.be/7ZqwcaRX-c0"
+    );
+
+    assert.equal(postLink, "https://t.me/mychannel/790");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1);
+    assert.equal(mockBot.api.deleteMessage.mock.callCount(), 1);
+    assert.equal(mediaTypeSent, "photo");
+
+    const photoCalls = mockBot.api.sendPhoto.mock.calls[0];
+    assert.equal(photoCalls.arguments[0], "-1001234567");
+    assert.equal(photoCalls.arguments[1], "https://i.ytimg.com/vi/7ZqwcaRX-c0/hqdefault.jpg");
   });
 
   it("accurately updates usage metrics and schedules state write when state is provided", async () => {

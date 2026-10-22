@@ -227,6 +227,25 @@ function isYoutubeUrl(urlString) {
   }
 }
 
+function toCanonicalYoutubeUrl(urlString) {
+  try {
+    const u = new URL(urlString);
+    const host = u.hostname.toLowerCase();
+    let id = "";
+    if (host === "youtu.be" || host.endsWith(".youtu.be")) {
+      id = u.pathname.replace(/^\//, "").split("/")[0];
+    } else if (u.pathname.includes("/shorts/")) {
+      id = u.pathname.split("/shorts/")[1].split("/")[0];
+    } else if (u.pathname.includes("/watch")) {
+      id = u.searchParams.get("v");
+    }
+    if (id) {
+      return `https://www.youtube.com/watch?v=${id}`;
+    }
+  } catch {}
+  return urlString;
+}
+
 function isTwitterUrl(urlString) {
   try {
     const host = new URL(urlString).hostname.toLowerCase();
@@ -635,6 +654,7 @@ module.exports = {
   isSafeUrl,
   stripHtml,
   downloadSafeBinary,
-  isYoutubeUrl
+  isYoutubeUrl,
+  toCanonicalYoutubeUrl
 };
 

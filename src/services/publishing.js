@@ -4,7 +4,7 @@ const { createAssistantDecision } = require("../llm/llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("../core/logger");
 const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
-const { fetchUrlContent, fetchUrlMetadata, isYoutubeUrl, extractUrls } = require("./fetcher");
+const { fetchUrlContent, fetchUrlMetadata, isYoutubeUrl, toCanonicalYoutubeUrl, extractUrls } = require("./fetcher");
 const { scheduleStateWrite } = require("../core/state");
 const { storeUsage } = require("./reply");
 const { createTelegraphArticle } = require("./telegraph");
@@ -50,7 +50,7 @@ const LINK_POST_SYSTEM_PROMPT = `Ты — редактор и автор Telegra
 * Не злоупотребляй восклицательными знаками.
 * Используй нормальный регистр букв. Запрещено писать заголовки или текст CAPS LOCK'ом (за исключением стандартных аббревиатур, таких как AI, LLM, CLI, API и т.д.).
 * Сразу переходи к сути.
-* Держи оптимальный объем поста: 700–1200 символов, чтобы текст читался на одном экране смартфона за 40 секунд.
+* Держи оптимальный объем поста: 700–900 символов (строго не более 950 символов), чтобы текст читался на одном экране смартфона за 40 секунд и гарантированно укладывался в лимит подписи Telegram к медиа (1024 символа).
 
 ### Структура поста (строго соблюдай этапы):
 1. **Заголовок**: Начинай с главного заголовка первого уровня с иконкой (например, "# 🚀 Название проекта").
@@ -234,14 +234,16 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
 
   let targetYoutubeUrl = null;
   if (sourceUrl && isYoutubeUrl(sourceUrl)) {
-    targetYoutubeUrl = sourceUrl;
+    targetYoutubeUrl = toCanonicalYoutubeUrl(sourceUrl);
   } else if (!finalMediaFileId) {
     const urlsInText = extractUrls(postText);
     const yt = urlsInText.find((u) => isYoutubeUrl(u));
     if (yt) {
-      targetYoutubeUrl = yt;
+      targetYoutubeUrl = toCanonicalYoutubeUrl(yt);
     }
   }
+
+  const fallbackOgImage = customMedia?.ogImage || null;
 
   if (!finalMediaFileId && customMedia) {
     if (customMedia.coverBuffer || customMedia.buffer) {
@@ -378,6 +380,32 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
             }
           })
         );
+
+        if (targetYoutubeUrl && fallbackOgImage && (!result.link_preview_options || !result.link_preview_options.url)) {
+          logger.warn(`[Publishing] Telegram link preview crawler failed to generate preview for ${targetYoutubeUrl}. Falling back to sendPhoto with YouTube thumbnail...`);
+          try {
+            let photoCaption = htmlContent;
+            if (photoCaption.length > 1024) {
+              let truncated = photoCaption.slice(0, 1020);
+              const lastNewline = truncated.lastIndexOf("\n");
+              if (lastNewline > 400) {
+                truncated = truncated.slice(0, lastNewline);
+              }
+              photoCaption = truncated;
+            }
+            const photoResult = await withRetryOnRateLimit(() =>
+              bot.api.sendPhoto(channelChatId, fallbackOgImage, {
+                caption: photoCaption,
+                parse_mode: "HTML"
+              })
+            );
+            await bot.api.deleteMessage(channelChatId, result.message_id).catch(() => {});
+            result = photoResult;
+            mediaTypeSent = "photo";
+          } catch (fallbackErr) {
+            logger.warn(`[Publishing] Fallback sendPhoto failed (${fallbackErr.message}). Keeping text message.`);
+          }
+        }
       }
     } else {
       result = await withRetryOnRateLimit(() =>
@@ -756,7 +784,11 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
 
     let successMsg = `✅ Пост по ссылке успешно опубликован в канале!\nСсылка: ${postLink}`;
     if (isYoutubeUrl(url)) {
-      successMsg += `\n🎬 <b>Медиа:</b> Интерактивный видеоплеер YouTube`;
+      if (mediaTypeSent === "photo") {
+        successMsg += `\n🎬 <b>Медиа:</b> Обложка видео YouTube (sendPhoto)`;
+      } else {
+        successMsg += `\n🎬 <b>Медиа:</b> Интерактивный видеоплеер YouTube`;
+      }
     }
     if (coverGenerated) {
       successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована в фирменном стиле канала (Gemini)`;
