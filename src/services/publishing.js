@@ -4,7 +4,7 @@ const { createAssistantDecision } = require("../llm/llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("../core/logger");
 const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
-const { fetchUrlContent, fetchUrlMetadata } = require("./fetcher");
+const { fetchUrlContent, fetchUrlMetadata, isYoutubeUrl, extractUrls } = require("./fetcher");
 const { scheduleStateWrite } = require("../core/state");
 const { storeUsage } = require("./reply");
 const { createTelegraphArticle } = require("./telegraph");
@@ -213,12 +213,23 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
   let ogImageUrl = null;
   let coverBuffer = null;
 
+  let targetYoutubeUrl = null;
+  if (sourceUrl && isYoutubeUrl(sourceUrl)) {
+    targetYoutubeUrl = sourceUrl;
+  } else if (!finalMediaFileId) {
+    const urlsInText = extractUrls(postText);
+    const yt = urlsInText.find((u) => isYoutubeUrl(u));
+    if (yt) {
+      targetYoutubeUrl = yt;
+    }
+  }
+
   if (!finalMediaFileId && customMedia) {
     if (customMedia.coverBuffer || customMedia.buffer) {
       coverBuffer = customMedia.coverBuffer || customMedia.buffer;
       finalMediaType = "photo";
       finalFileName = customMedia.fileName || "cover.png";
-    } else if (customMedia.ogImage) {
+    } else if (customMedia.ogImage && !targetYoutubeUrl) {
       ogImageUrl = customMedia.ogImage;
       finalMediaType = "photo";
       finalFileName = "cover.jpg";
@@ -292,7 +303,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
       .replace(/<video[^>]*>/gi, "")
       .trim();
 
-    if ((finalMediaFileId || ogImageUrl || coverBuffer || sourceUrl) && !mediaSentSeparately) {
+    if ((finalMediaFileId || ogImageUrl || coverBuffer || sourceUrl || targetYoutubeUrl) && !mediaSentSeparately) {
       if (htmlContent.length <= 1024 && (finalMediaFileId || ogImageUrl || coverBuffer)) {
         const sendParams = {
           chat_id: channelChatId,
@@ -325,7 +336,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           mediaTypeSent = "photo";
         }
         let textWithMedia = htmlContent;
-        let previewUrl = sourceUrl;
+        let previewUrl = targetYoutubeUrl || sourceUrl;
         if (!previewUrl && htmlTag && htmlTag.includes("src=")) {
           const srcMatch = htmlTag.match(/src="([^"]+)"/);
           if (srcMatch && srcMatch[1]) {
@@ -333,7 +344,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           }
         }
 
-        if (previewUrl) {
+        if (previewUrl && !targetYoutubeUrl) {
           textWithMedia = `<a href="${previewUrl}">&#160;</a>${htmlContent}`;
         }
 
@@ -341,6 +352,7 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           parse_mode: "HTML",
           link_preview_options: {
             is_disabled: previewUrl ? false : true,
+            ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : {}),
             prefer_large_media: true,
             show_above_text: true
           }
@@ -693,7 +705,7 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
     // генерируем фирменную обложку только если включена настройка LINK_POST_AUTO_COVER
     const msgMedia = extractMediaFromMessage(ctx.message || {});
     let coverGenerated = false;
-    if (config?.linkPostAutoCover && !customMedia && !msgMedia.mediaFileId) {
+    if (config?.linkPostAutoCover && !customMedia && !msgMedia.mediaFileId && !isYoutubeUrl(url)) {
       try {
         await ctx.api.editMessageText(
           ctx.chat.id,
@@ -714,6 +726,9 @@ async function handleLinkPost(ctx, bot, config, url, state = null) {
     const { postLink, mediaSentSeparately, mediaTypeSent, mediaDeployed } = await publishToChannel(bot, config, postWithSource, ctx.message, customMedia, url);
 
     let successMsg = `✅ Пост по ссылке успешно опубликован в канале!\nСсылка: ${postLink}`;
+    if (isYoutubeUrl(url)) {
+      successMsg += `\n🎬 <b>Медиа:</b> Интерактивный видеоплеер YouTube`;
+    }
     if (coverGenerated) {
       successMsg += `\n🎨 <b>Обложка:</b> Сгенерирована в фирменном стиле канала (Gemini)`;
     }

@@ -634,6 +634,7 @@ module.exports = {
   extractOgImage,
   isSafeUrl,
   stripHtml,
-  downloadSafeBinary
+  downloadSafeBinary,
+  isYoutubeUrl
 };
 

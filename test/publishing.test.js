@@ -146,6 +146,45 @@ describe("Publishing Commands and LLM Formatting", () => {
     });
   });
 
+  it("publishes YouTube link with interactive video player link_preview_options (without sendPhoto)", async () => {
+    const mockBot = {
+      api: {
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 789,
+          chat: { id: -1001234567, username: "mychannel" }
+        })),
+        sendPhoto: mock.fn(() => Promise.resolve({}))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567"
+    };
+
+    const shortPost = "Short post about video\n\n🔗 <a href=\"https://youtu.be/dQw4w9WgXcQ\">Источник</a>";
+    const { result, postLink } = await publishToChannel(
+      mockBot,
+      mockConfig,
+      shortPost,
+      null,
+      { ogImage: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" },
+      "https://youtu.be/dQw4w9WgXcQ"
+    );
+
+    assert.equal(postLink, "https://t.me/mychannel/789");
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 0, "Should not call sendPhoto for YouTube link");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1, "Should call sendMessage");
+
+    const calls = mockBot.api.sendMessage.mock.calls[0];
+    assert.equal(calls.arguments[0], "-1001234567");
+    assert.deepEqual(calls.arguments[2].link_preview_options, {
+      is_disabled: false,
+      url: "https://youtu.be/dQw4w9WgXcQ",
+      prefer_large_media: true,
+      show_above_text: true
+    });
+  });
+
   it("accurately updates usage metrics and schedules state write when state is provided", async () => {
     const originalFetch = globalThis.fetch;
     const { reformatPostWithLlm } = require("../src/services/publishing");
