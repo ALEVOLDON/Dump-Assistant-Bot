@@ -146,14 +146,17 @@ describe("Publishing Commands and LLM Formatting", () => {
     });
   });
 
-  it("publishes YouTube link directly via sendPhoto with video thumbnail", async () => {
+  it("publishes YouTube link with native interactive video player when crawler succeeds", async () => {
     const mockBot = {
       api: {
-        sendMessage: mock.fn(() => Promise.resolve({})),
-        sendPhoto: mock.fn(() => Promise.resolve({
+        sendMessage: mock.fn(() => Promise.resolve({
           message_id: 789,
-          chat: { id: -1001234567, username: "mychannel" }
-        }))
+          chat: { id: -1001234567, username: "mychannel" },
+          link_preview_options: {
+            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          }
+        })),
+        sendPhoto: mock.fn(() => Promise.resolve({}))
       }
     };
 
@@ -172,22 +175,66 @@ describe("Publishing Commands and LLM Formatting", () => {
     );
 
     assert.equal(postLink, "https://t.me/mychannel/789");
-    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1, "Should call sendPhoto for YouTube link");
-    assert.equal(mockBot.api.sendMessage.mock.callCount(), 0, "Should NOT call sendMessage for YouTube link");
-    assert.equal(mediaTypeSent, "photo");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1, "Should attempt sendMessage for interactive player");
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 0, "Should NOT call sendPhoto when player succeeds");
+    assert.equal(mediaTypeSent, "video_player");
 
-    const calls = mockBot.api.sendPhoto.mock.calls[0];
+    const calls = mockBot.api.sendMessage.mock.calls[0];
     assert.equal(calls.arguments[0], "-1001234567");
-    assert.equal(calls.arguments[1], "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
-    assert.match(calls.arguments[2].caption, /Short post about video/);
+    assert.deepEqual(calls.arguments[2].link_preview_options, {
+      is_disabled: false,
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      prefer_large_media: true,
+      show_above_text: true
+    });
   });
 
-  it("automatically derives YouTube thumbnail even if customMedia ogImage is missing", async () => {
+  it("falls back to sendPhoto with video thumbnail when Telegram crawler fails or throws 429", async () => {
     const mockBot = {
       api: {
-        sendMessage: mock.fn(() => Promise.resolve({})),
+        sendMessage: mock.fn(() => Promise.reject(new Error("429: Too Many Requests: retry after 8"))),
         sendPhoto: mock.fn(() => Promise.resolve({
           message_id: 790,
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
+      }
+    };
+
+    const mockConfig = {
+      channelChatId: "-1001234567"
+    };
+
+    const shortPost = "Short post about video\n\n🔗 <a href=\"https://youtu.be/uizaxuzgEAk\">Источник</a>";
+    const { result, postLink, mediaTypeSent } = await publishToChannel(
+      mockBot,
+      mockConfig,
+      shortPost,
+      null,
+      { ogImage: "https://i.ytimg.com/vi/uizaxuzgEAk/hqdefault.jpg" },
+      "https://youtu.be/uizaxuzgEAk"
+    );
+
+    assert.equal(postLink, "https://t.me/mychannel/790");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1, "Should fall back to sendPhoto when sendMessage throws 429");
+    assert.equal(mediaTypeSent, "photo");
+
+    const photoCalls = mockBot.api.sendPhoto.mock.calls[0];
+    assert.equal(photoCalls.arguments[0], "-1001234567");
+    assert.equal(photoCalls.arguments[1], "https://i.ytimg.com/vi/uizaxuzgEAk/hqdefault.jpg");
+  });
+
+  it("falls back to sendPhoto with video thumbnail when Telegram returns empty link preview", async () => {
+    const mockBot = {
+      api: {
+        sendMessage: mock.fn(() => Promise.resolve({
+          message_id: 791,
+          chat: { id: -1001234567, username: "mychannel" },
+          link_preview_options: {}
+        })),
+        deleteMessage: mock.fn(() => Promise.resolve(true)),
+        sendPhoto: mock.fn(() => Promise.resolve({
+          message_id: 792,
           chat: { id: -1001234567, username: "mychannel" }
         }))
       }
@@ -207,9 +254,10 @@ describe("Publishing Commands and LLM Formatting", () => {
       "https://youtu.be/7ZqwcaRX-c0"
     );
 
-    assert.equal(postLink, "https://t.me/mychannel/790");
-    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1);
-    assert.equal(mockBot.api.sendMessage.mock.callCount(), 0);
+    assert.equal(postLink, "https://t.me/mychannel/792");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
+    assert.equal(mockBot.api.deleteMessage.mock.callCount(), 1, "Should delete empty text message");
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1, "Should fall back to sendPhoto");
     assert.equal(mediaTypeSent, "photo");
 
     const photoCalls = mockBot.api.sendPhoto.mock.calls[0];

@@ -393,7 +393,49 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
 
     const hasVisualMedia = Boolean(finalMediaFileId || ogImageUrl || coverBuffer);
 
-    if (hasVisualMedia && !mediaSentSeparately) {
+    if (targetYoutubeUrl && !finalMediaFileId && !mediaSentSeparately) {
+      let nativePlayerSuccess = false;
+      try {
+        logger.info(`[Publishing] Attempting native in-app YouTube player for: ${targetYoutubeUrl}`);
+        result = await bot.api.sendMessage(channelChatId, htmlContent, {
+          parse_mode: "HTML",
+          link_preview_options: {
+            is_disabled: false,
+            url: targetYoutubeUrl,
+            prefer_large_media: true,
+            show_above_text: true
+          }
+        });
+
+        if (result.link_preview_options && result.link_preview_options.url) {
+          logger.info("[Publishing] Native YouTube in-app player generated successfully!");
+          nativePlayerSuccess = true;
+          mediaTypeSent = "video_player";
+        } else {
+          logger.warn(`[Publishing] Telegram crawler returned empty preview for ${targetYoutubeUrl}. Deleting empty message and falling back to sendPhoto...`);
+          await bot.api.deleteMessage(channelChatId, result.message_id).catch(() => {});
+        }
+      } catch (ytErr) {
+        logger.warn(`[Publishing] Native YouTube player failed (${ytErr.message}). Falling back to sendPhoto with thumbnail...`);
+      }
+
+      if (!nativePlayerSuccess) {
+        const thumbUrl = ogImageUrl || getYoutubeThumbnailUrl(targetYoutubeUrl);
+        const photoCaption = truncateHtmlSafely(htmlContent, 1024);
+        const sendParams = {
+          chat_id: channelChatId,
+          caption: photoCaption,
+          parse_mode: "HTML"
+        };
+
+        if (localMediaPath && fs.existsSync(localMediaPath)) {
+          result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, new InputFile(localMediaPath), sendParams));
+        } else {
+          result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, thumbUrl, sendParams));
+        }
+        mediaTypeSent = "photo";
+      }
+    } else if (hasVisualMedia && !mediaSentSeparately) {
       const photoCaption = truncateHtmlSafely(htmlContent, 1024);
       const sendParams = {
         chat_id: channelChatId,
