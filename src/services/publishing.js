@@ -4,7 +4,7 @@ const { createAssistantDecision } = require("../llm/llm");
 const { markdownToHtml } = require("./rich");
 const { logger } = require("../core/logger");
 const { hostMediaForPost, isMediaStorageConfigured, hostWebMediaForPost } = require("./mediaStorage");
-const { fetchUrlContent, fetchUrlMetadata, isYoutubeUrl, toCanonicalYoutubeUrl, extractUrls } = require("./fetcher");
+const { fetchUrlContent, fetchUrlMetadata, isYoutubeUrl, toCanonicalYoutubeUrl, extractUrls, getYoutubeThumbnailUrl } = require("./fetcher");
 const { scheduleStateWrite } = require("../core/state");
 const { storeUsage } = require("./reply");
 const { createTelegraphArticle } = require("./telegraph");
@@ -218,6 +218,68 @@ async function withRetryOnRateLimit(fn, maxRetries = 3) {
   }
 }
 
+function truncateHtmlSafely(html, maxLen = 1024) {
+  if (!html || html.length <= maxLen) return html;
+
+  let footer = "";
+  let body = html;
+
+  const footerMatch = html.match(/(\n+(?:(?:🔗|👉)\s*)?<a\s+href=[^>]+>[^<]+<\/a>[\s\S]*)$/i)
+    || html.match(/(\n+#[\w\u0400-\u04FF]+[\s\S]*)$/i);
+
+  if (footerMatch && footerMatch.index > 100) {
+    footer = footerMatch[1];
+    body = html.slice(0, footerMatch.index);
+  }
+
+  const ellipsis = "…";
+  let available = maxLen - footer.length - ellipsis.length;
+  if (available < 150) {
+    footer = "";
+    available = maxLen - ellipsis.length;
+  }
+
+  function closeOpenTags(str) {
+    const cleanStr = str.replace(/<[^>]*$/, "");
+    const tagRegex = /<\/?([a-zA-Z0-9_-]+)(?:\s+[^>]*)?>/g;
+    const stack = [];
+    let match;
+    while ((match = tagRegex.exec(cleanStr)) !== null) {
+      const fullTag = match[0];
+      const tagName = match[1].toLowerCase();
+      if (fullTag.startsWith("</")) {
+        const lastIdx = stack.lastIndexOf(tagName);
+        if (lastIdx !== -1) stack.splice(lastIdx, 1);
+      } else if (!fullTag.endsWith("/>") && !["br", "hr", "img"].includes(tagName)) {
+        stack.push(tagName);
+      }
+    }
+    let closingTags = "";
+    while (stack.length) {
+      closingTags += `</${stack.pop()}>`;
+    }
+    return cleanStr + closingTags;
+  }
+
+  let cutIndex = available;
+  const sub = body.slice(0, available);
+  const lastSpace = Math.max(sub.lastIndexOf(" "), sub.lastIndexOf("\n"));
+  if (lastSpace > available * 0.7) {
+    cutIndex = lastSpace;
+  }
+
+  let truncatedBody = closeOpenTags(body.slice(0, cutIndex)) + ellipsis;
+  let candidate = truncatedBody + (footer ? footer : "");
+
+  while (candidate.length > maxLen && cutIndex > 50) {
+    cutIndex -= (candidate.length - maxLen + 5);
+    truncatedBody = closeOpenTags(body.slice(0, Math.max(0, cutIndex))) + ellipsis;
+    candidate = truncatedBody + (footer ? footer : "");
+  }
+
+  return candidate;
+}
+
 async function publishToChannel(bot, config, postText, msg, customMedia = null, sourceUrl = null) {
   if (!config.channelChatId) {
     throw new Error("CHANNEL_CHAT_ID не задан в .env");
@@ -243,14 +305,19 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
     }
   }
 
-  const fallbackOgImage = customMedia?.ogImage || null;
+  if (targetYoutubeUrl && (!customMedia || !customMedia.ogImage)) {
+    const directThumb = getYoutubeThumbnailUrl(targetYoutubeUrl);
+    if (directThumb) {
+      customMedia = { ...(customMedia || {}), ogImage: directThumb };
+    }
+  }
 
   if (!finalMediaFileId && customMedia) {
     if (customMedia.coverBuffer || customMedia.buffer) {
       coverBuffer = customMedia.coverBuffer || customMedia.buffer;
       finalMediaType = "photo";
       finalFileName = customMedia.fileName || "cover.png";
-    } else if (customMedia.ogImage && !targetYoutubeUrl) {
+    } else if (customMedia.ogImage) {
       ogImageUrl = customMedia.ogImage;
       finalMediaType = "photo";
       finalFileName = "cover.jpg";
@@ -324,89 +391,74 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
       .replace(/<video[^>]*>/gi, "")
       .trim();
 
-    if ((finalMediaFileId || ogImageUrl || coverBuffer || sourceUrl || targetYoutubeUrl) && !mediaSentSeparately) {
-      if (htmlContent.length <= 1024 && (finalMediaFileId || ogImageUrl || coverBuffer)) {
-        const sendParams = {
-          chat_id: channelChatId,
-          caption: htmlContent,
-          parse_mode: "HTML"
-        };
-        if (finalMediaFileId) {
-          if (finalMediaType === "photo") {
-            result = await bot.api.sendPhoto(channelChatId, finalMediaFileId, sendParams);
-          } else if (finalMediaType === "video") {
-            result = await bot.api.sendVideo(channelChatId, finalMediaFileId, sendParams);
-          } else if (finalMediaType === "animation") {
-            result = await bot.api.sendAnimation(channelChatId, finalMediaFileId, sendParams);
-          } else if (finalMediaType === "document") {
-            result = await bot.api.sendDocument(channelChatId, finalMediaFileId, sendParams);
-          }
-        } else if (coverBuffer) {
-          result = await bot.api.sendPhoto(channelChatId, new InputFile(coverBuffer, finalFileName), sendParams);
-        } else if (ogImageUrl) {
-          if (localMediaPath && fs.existsSync(localMediaPath)) {
-            result = await bot.api.sendPhoto(channelChatId, new InputFile(localMediaPath), sendParams);
-          } else {
-            result = await bot.api.sendPhoto(channelChatId, ogImageUrl, sendParams);
-          }
-        }
-      } else {
-        if (coverBuffer) {
-          await bot.api.sendPhoto(channelChatId, new InputFile(coverBuffer, finalFileName));
-          mediaSentSeparately = true;
+    const hasVisualMedia = Boolean(finalMediaFileId || ogImageUrl || coverBuffer);
+
+    if (hasVisualMedia && !mediaSentSeparately) {
+      const photoCaption = truncateHtmlSafely(htmlContent, 1024);
+      const sendParams = {
+        chat_id: channelChatId,
+        caption: photoCaption,
+        parse_mode: "HTML"
+      };
+
+      if (finalMediaFileId) {
+        if (finalMediaType === "photo") {
+          result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, finalMediaFileId, sendParams));
           mediaTypeSent = "photo";
+        } else if (finalMediaType === "video") {
+          result = await withRetryOnRateLimit(() => bot.api.sendVideo(channelChatId, finalMediaFileId, sendParams));
+          mediaTypeSent = "video";
+        } else if (finalMediaType === "animation") {
+          result = await withRetryOnRateLimit(() => bot.api.sendAnimation(channelChatId, finalMediaFileId, sendParams));
+          mediaTypeSent = "animation";
+        } else if (finalMediaType === "document") {
+          result = await withRetryOnRateLimit(() => bot.api.sendDocument(channelChatId, finalMediaFileId, sendParams));
+          mediaTypeSent = "document";
         }
-        let textWithMedia = htmlContent;
-        let previewUrl = targetYoutubeUrl || sourceUrl;
-        if (!previewUrl && htmlTag && htmlTag.includes("src=")) {
-          const srcMatch = htmlTag.match(/src="([^"]+)"/);
-          if (srcMatch && srcMatch[1]) {
-            previewUrl = srcMatch[1];
+      } else if (coverBuffer) {
+        result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, new InputFile(coverBuffer, finalFileName), sendParams));
+        mediaTypeSent = "photo";
+      } else if (ogImageUrl) {
+        try {
+          if (localMediaPath && fs.existsSync(localMediaPath)) {
+            result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, new InputFile(localMediaPath), sendParams));
+          } else {
+            result = await withRetryOnRateLimit(() => bot.api.sendPhoto(channelChatId, ogImageUrl, sendParams));
           }
-        }
-
-        if (previewUrl && !targetYoutubeUrl) {
-          textWithMedia = `<a href="${previewUrl}">&#160;</a>${htmlContent}`;
-        }
-
-        result = await withRetryOnRateLimit(() =>
-          bot.api.sendMessage(channelChatId, textWithMedia, {
-            parse_mode: "HTML",
-            link_preview_options: {
-              is_disabled: previewUrl ? false : true,
-              ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : {}),
-              prefer_large_media: true,
-              show_above_text: true
-            }
-          })
-        );
-
-        if (targetYoutubeUrl && fallbackOgImage && (!result.link_preview_options || !result.link_preview_options.url)) {
-          logger.warn(`[Publishing] Telegram link preview crawler failed to generate preview for ${targetYoutubeUrl}. Falling back to sendPhoto with YouTube thumbnail...`);
-          try {
-            let photoCaption = htmlContent;
-            if (photoCaption.length > 1024) {
-              let truncated = photoCaption.slice(0, 1020);
-              const lastNewline = truncated.lastIndexOf("\n");
-              if (lastNewline > 400) {
-                truncated = truncated.slice(0, lastNewline);
+          mediaTypeSent = "photo";
+        } catch (photoErr) {
+          logger.warn(`[Publishing] sendPhoto with ogImageUrl failed (${photoErr.message}). Falling back to sendMessage...`);
+          result = await withRetryOnRateLimit(() =>
+            bot.api.sendMessage(channelChatId, htmlContent, {
+              parse_mode: "HTML",
+              link_preview_options: {
+                is_disabled: false,
+                ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : (sourceUrl ? { url: sourceUrl } : {})),
+                prefer_large_media: true,
+                show_above_text: true
               }
-              photoCaption = truncated;
-            }
-            const photoResult = await withRetryOnRateLimit(() =>
-              bot.api.sendPhoto(channelChatId, fallbackOgImage, {
-                caption: photoCaption,
-                parse_mode: "HTML"
-              })
-            );
-            await bot.api.deleteMessage(channelChatId, result.message_id).catch(() => {});
-            result = photoResult;
-            mediaTypeSent = "photo";
-          } catch (fallbackErr) {
-            logger.warn(`[Publishing] Fallback sendPhoto failed (${fallbackErr.message}). Keeping text message.`);
-          }
+            })
+          );
         }
       }
+    } else if ((sourceUrl || targetYoutubeUrl) && !mediaSentSeparately) {
+      let textWithMedia = htmlContent;
+      let previewUrl = targetYoutubeUrl || sourceUrl;
+      if (previewUrl && !targetYoutubeUrl) {
+        textWithMedia = `<a href="${previewUrl}">&#160;</a>${htmlContent}`;
+      }
+
+      result = await withRetryOnRateLimit(() =>
+        bot.api.sendMessage(channelChatId, textWithMedia, {
+          parse_mode: "HTML",
+          link_preview_options: {
+            is_disabled: false,
+            ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : {}),
+            prefer_large_media: true,
+            show_above_text: true
+          }
+        })
+      );
     } else {
       result = await withRetryOnRateLimit(() =>
         bot.api.sendMessage(channelChatId, htmlContent, {
@@ -828,5 +880,7 @@ module.exports = {
   ARTICLE_SYSTEM_PROMPT,
   generatePostFromLinkContent,
   handleLinkPost,
-  LINK_POST_SYSTEM_PROMPT
+  LINK_POST_SYSTEM_PROMPT,
+  truncateHtmlSafely,
+  withRetryOnRateLimit
 };

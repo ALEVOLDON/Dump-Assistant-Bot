@@ -1,7 +1,7 @@
 process.env.NODE_ENV = "test";
 const { describe, it, mock } = require("node:test");
 const assert = require("node:assert/strict");
-const { handlePostCommand, generatePostFromLinkContent, publishToChannel } = require("../src/services/publishing");
+const { handlePostCommand, generatePostFromLinkContent, publishToChannel, truncateHtmlSafely } = require("../src/services/publishing");
 
 describe("Publishing Commands and LLM Formatting", () => {
   it("distinguishes regular post commands from postlink", async () => {
@@ -109,7 +109,7 @@ describe("Publishing Commands and LLM Formatting", () => {
     assert.match(calls.arguments[2].caption, /Post content/);
   });
 
-  it("publishes long post with sourceUrl using sendMessage and link_preview_options", async () => {
+  it("publishes post with sourceUrl using sendMessage and link_preview_options when no ogImage is available", async () => {
     const mockBot = {
       api: {
         sendMessage: mock.fn(() => Promise.resolve({
@@ -129,7 +129,7 @@ describe("Publishing Commands and LLM Formatting", () => {
       mockConfig,
       longText,
       null,
-      { ogImage: "https://example.com/cover.jpg" },
+      null,
       "https://example.com/article"
     );
 
@@ -146,17 +146,14 @@ describe("Publishing Commands and LLM Formatting", () => {
     });
   });
 
-  it("publishes YouTube link with interactive video player link_preview_options (without sendPhoto)", async () => {
+  it("publishes YouTube link directly via sendPhoto with video thumbnail", async () => {
     const mockBot = {
       api: {
-        sendMessage: mock.fn(() => Promise.resolve({
+        sendMessage: mock.fn(() => Promise.resolve({})),
+        sendPhoto: mock.fn(() => Promise.resolve({
           message_id: 789,
-          chat: { id: -1001234567, username: "mychannel" },
-          link_preview_options: {
-            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          }
-        })),
-        sendPhoto: mock.fn(() => Promise.resolve({}))
+          chat: { id: -1001234567, username: "mychannel" }
+        }))
       }
     };
 
@@ -165,7 +162,7 @@ describe("Publishing Commands and LLM Formatting", () => {
     };
 
     const shortPost = "Short post about video\n\n🔗 <a href=\"https://youtu.be/dQw4w9WgXcQ\">Источник</a>";
-    const { result, postLink } = await publishToChannel(
+    const { result, postLink, mediaTypeSent } = await publishToChannel(
       mockBot,
       mockConfig,
       shortPost,
@@ -175,32 +172,24 @@ describe("Publishing Commands and LLM Formatting", () => {
     );
 
     assert.equal(postLink, "https://t.me/mychannel/789");
-    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 0, "Should not call sendPhoto for YouTube link");
-    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1, "Should call sendMessage");
+    assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1, "Should call sendPhoto for YouTube link");
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 0, "Should NOT call sendMessage for YouTube link");
+    assert.equal(mediaTypeSent, "photo");
 
-    const calls = mockBot.api.sendMessage.mock.calls[0];
+    const calls = mockBot.api.sendPhoto.mock.calls[0];
     assert.equal(calls.arguments[0], "-1001234567");
-    assert.deepEqual(calls.arguments[2].link_preview_options, {
-      is_disabled: false,
-      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      prefer_large_media: true,
-      show_above_text: true
-    });
+    assert.equal(calls.arguments[1], "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg");
+    assert.match(calls.arguments[2].caption, /Short post about video/);
   });
 
-  it("falls back to sendPhoto with YouTube thumbnail when Telegram crawler fails to generate preview", async () => {
+  it("automatically derives YouTube thumbnail even if customMedia ogImage is missing", async () => {
     const mockBot = {
       api: {
-        sendMessage: mock.fn(() => Promise.resolve({
-          message_id: 789,
-          chat: { id: -1001234567, username: "mychannel" },
-          link_preview_options: {}
-        })),
+        sendMessage: mock.fn(() => Promise.resolve({})),
         sendPhoto: mock.fn(() => Promise.resolve({
           message_id: 790,
           chat: { id: -1001234567, username: "mychannel" }
-        })),
-        deleteMessage: mock.fn(() => Promise.resolve(true))
+        }))
       }
     };
 
@@ -214,19 +203,42 @@ describe("Publishing Commands and LLM Formatting", () => {
       mockConfig,
       shortPost,
       null,
-      { ogImage: "https://i.ytimg.com/vi/7ZqwcaRX-c0/hqdefault.jpg" },
+      null,
       "https://youtu.be/7ZqwcaRX-c0"
     );
 
     assert.equal(postLink, "https://t.me/mychannel/790");
-    assert.equal(mockBot.api.sendMessage.mock.callCount(), 1);
     assert.equal(mockBot.api.sendPhoto.mock.callCount(), 1);
-    assert.equal(mockBot.api.deleteMessage.mock.callCount(), 1);
+    assert.equal(mockBot.api.sendMessage.mock.callCount(), 0);
     assert.equal(mediaTypeSent, "photo");
 
     const photoCalls = mockBot.api.sendPhoto.mock.calls[0];
     assert.equal(photoCalls.arguments[0], "-1001234567");
     assert.equal(photoCalls.arguments[1], "https://i.ytimg.com/vi/7ZqwcaRX-c0/hqdefault.jpg");
+  });
+
+  it("truncates long HTML caption safely within 1024 chars preserving tags and footer", () => {
+    const rawHtml = "<b>🚀 Title</b>\n\n" + "This is a long sentence with <i>nested tags</i> and <code>code</code>. ".repeat(25) + "\n\n🔗 <a href=\"https://youtu.be/123\">Источник</a>\n\n#AI #Tech";
+    assert.ok(rawHtml.length > 1024, `rawHtml should be > 1024, got ${rawHtml.length}`);
+
+    const truncated = truncateHtmlSafely(rawHtml, 1024);
+    assert.ok(truncated.length <= 1024, `truncated must be <= 1024, got ${truncated.length}`);
+    assert.ok(truncated.includes("<b>🚀 Title</b>"), "must preserve title");
+    assert.ok(truncated.includes("🔗 <a href=\"https://youtu.be/123\">Источник</a>"), "must preserve source link");
+    assert.ok(truncated.includes("#AI #Tech"), "must preserve hashtags");
+
+    // Check that tags are balanced (no dangling open tags)
+    const openB = (truncated.match(/<b>/g) || []).length;
+    const closeB = (truncated.match(/<\/b>/g) || []).length;
+    assert.equal(openB, closeB, "<b> tags must be balanced");
+
+    const openI = (truncated.match(/<i>/g) || []).length;
+    const closeI = (truncated.match(/<\/i>/g) || []).length;
+    assert.equal(openI, closeI, "<i> tags must be balanced");
+
+    const openCode = (truncated.match(/<code>/g) || []).length;
+    const closeCode = (truncated.match(/<\/code>/g) || []).length;
+    assert.equal(openCode, closeCode, "<code> tags must be balanced");
   });
 
   it("accurately updates usage metrics and schedules state write when state is provided", async () => {

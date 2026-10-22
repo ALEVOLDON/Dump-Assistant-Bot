@@ -227,22 +227,42 @@ function isYoutubeUrl(urlString) {
   }
 }
 
-function toCanonicalYoutubeUrl(urlString) {
+function extractYoutubeVideoId(urlString) {
   try {
     const u = new URL(urlString);
     const host = u.hostname.toLowerCase();
-    let id = "";
     if (host === "youtu.be" || host.endsWith(".youtu.be")) {
-      id = u.pathname.replace(/^\//, "").split("/")[0];
-    } else if (u.pathname.includes("/shorts/")) {
-      id = u.pathname.split("/shorts/")[1].split("/")[0];
-    } else if (u.pathname.includes("/watch")) {
-      id = u.searchParams.get("v");
+      return u.pathname.replace(/^\//, "").split("/")[0].split("?")[0];
     }
-    if (id) {
-      return `https://www.youtube.com/watch?v=${id}`;
+    if (u.pathname.includes("/shorts/")) {
+      return u.pathname.split("/shorts/")[1].split("/")[0].split("?")[0];
+    }
+    if (u.pathname.includes("/watch")) {
+      return u.searchParams.get("v");
+    }
+    if (u.pathname.includes("/live/")) {
+      return u.pathname.split("/live/")[1].split("/")[0].split("?")[0];
+    }
+    if (u.pathname.includes("/embed/")) {
+      return u.pathname.split("/embed/")[1].split("/")[0].split("?")[0];
     }
   } catch {}
+  return null;
+}
+
+function getYoutubeThumbnailUrl(urlString) {
+  const id = extractYoutubeVideoId(urlString);
+  if (id) {
+    return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  }
+  return null;
+}
+
+function toCanonicalYoutubeUrl(urlString) {
+  const id = extractYoutubeVideoId(urlString);
+  if (id) {
+    return `https://www.youtube.com/watch?v=${id}`;
+  }
   return urlString;
 }
 
@@ -485,8 +505,18 @@ async function fetchUrlMetadata(url, timeoutMs = FETCH_TIMEOUT_MS) {
     if (isYoutubeUrl(url)) {
       const oembedMeta = await fetchYoutubeOembedMetadata(url, controller.signal).catch(() => null);
       if (oembedMeta) {
+        if (!oembedMeta.ogImage) {
+          oembedMeta.ogImage = getYoutubeThumbnailUrl(url);
+        }
         if (oembedMeta.text) oembedMeta.text = oembedMeta.text.slice(0, MAX_TEXT_LENGTH);
         return oembedMeta;
+      }
+      const directThumb = getYoutubeThumbnailUrl(url);
+      if (directThumb) {
+        return {
+          text: `YouTube video: ${toCanonicalYoutubeUrl(url)}`,
+          ogImage: directThumb
+        };
       }
     }
 
@@ -655,6 +685,8 @@ module.exports = {
   stripHtml,
   downloadSafeBinary,
   isYoutubeUrl,
-  toCanonicalYoutubeUrl
+  toCanonicalYoutubeUrl,
+  extractYoutubeVideoId,
+  getYoutubeThumbnailUrl
 };
 
