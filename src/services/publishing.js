@@ -199,6 +199,25 @@ async function sendMediaSeparately(bot, channelChatId, mediaType, mediaFileId) {
   }
 }
 
+async function withRetryOnRateLimit(fn, maxRetries = 3) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt++;
+      const retryAfter = err?.parameters?.retry_after ||
+        (typeof err?.message === "string" && err.message.match(/retry after (\d+)/i) ? Number(err.message.match(/retry after (\d+)/i)[1]) : null);
+      if (retryAfter && attempt <= maxRetries) {
+        logger.warn(`[Publishing] Hit 429 rate limit. Retrying after ${retryAfter + 1}s (attempt ${attempt}/${maxRetries})...`);
+        await new Promise((resolve) => setTimeout(resolve, (retryAfter + 1) * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function publishToChannel(bot, config, postText, msg, customMedia = null, sourceUrl = null) {
   if (!config.channelChatId) {
     throw new Error("CHANNEL_CHAT_ID не задан в .env");
@@ -348,21 +367,25 @@ async function publishToChannel(bot, config, postText, msg, customMedia = null, 
           textWithMedia = `<a href="${previewUrl}">&#160;</a>${htmlContent}`;
         }
 
-        result = await bot.api.sendMessage(channelChatId, textWithMedia, {
-          parse_mode: "HTML",
-          link_preview_options: {
-            is_disabled: previewUrl ? false : true,
-            ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : {}),
-            prefer_large_media: true,
-            show_above_text: true
-          }
-        });
+        result = await withRetryOnRateLimit(() =>
+          bot.api.sendMessage(channelChatId, textWithMedia, {
+            parse_mode: "HTML",
+            link_preview_options: {
+              is_disabled: previewUrl ? false : true,
+              ...(targetYoutubeUrl ? { url: targetYoutubeUrl } : {}),
+              prefer_large_media: true,
+              show_above_text: true
+            }
+          })
+        );
       }
     } else {
-      result = await bot.api.sendMessage(channelChatId, htmlContent, {
-        parse_mode: "HTML",
-        link_preview_options: { is_disabled: true }
-      });
+      result = await withRetryOnRateLimit(() =>
+        bot.api.sendMessage(channelChatId, htmlContent, {
+          parse_mode: "HTML",
+          link_preview_options: { is_disabled: true }
+        })
+      );
     }
   }
 
@@ -460,10 +483,12 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
 
   if (mediaFileId && mediaType === "photo") {
     // 1. Если пользователь сам прикрепил фото, используем его
-    result = await bot.api.sendPhoto(channelChatId, mediaFileId, {
-      caption: announcementText,
-      parse_mode: "HTML"
-    });
+    result = await withRetryOnRateLimit(() =>
+      bot.api.sendPhoto(channelChatId, mediaFileId, {
+        caption: announcementText,
+        parse_mode: "HTML"
+      })
+    );
   } else {
     // 2. Если фото нет, генерируем авторскую AI-обложку
     try {
@@ -478,20 +503,24 @@ async function createAndPublishArticle(bot, config, articleMarkdown, msg, state 
     }
 
     if (cover && cover.buffer) {
-      result = await bot.api.sendPhoto(channelChatId, new InputFile(cover.buffer, cover.fileName || "cover.png"), {
-        caption: announcementText,
-        parse_mode: "HTML"
-      });
+      result = await withRetryOnRateLimit(() =>
+        bot.api.sendPhoto(channelChatId, new InputFile(cover.buffer, cover.fileName || "cover.png"), {
+          caption: announcementText,
+          parse_mode: "HTML"
+        })
+      );
     } else {
-      result = await bot.api.sendMessage(channelChatId, announcementText, {
-        parse_mode: "HTML",
-        link_preview_options: {
-          is_disabled: false,
-          prefer_large_media: true,
-          show_above_text: false,
-          url: articleUrl
-        }
-      });
+      result = await withRetryOnRateLimit(() =>
+        bot.api.sendMessage(channelChatId, announcementText, {
+          parse_mode: "HTML",
+          link_preview_options: {
+            is_disabled: false,
+            prefer_large_media: true,
+            show_above_text: false,
+            url: articleUrl
+          }
+        })
+      );
     }
   }
 
